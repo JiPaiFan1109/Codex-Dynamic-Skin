@@ -1,0 +1,57 @@
+﻿param([string]$NodeRuntimePath = "$env:LOCALAPPDATA\CodexDreamSkin\engine\runtime\node\node.exe")
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path $PSScriptRoot -Parent
+if (-not (Test-Path "$repo/scripts/install.ps1")) { throw 'Installer is missing.' }
+. "$repo/scripts/install.ps1"
+$temp = Join-Path ([IO.Path]::GetTempPath()) ('dynamic-install-test-' + [guid]::NewGuid().ToString('N'))
+New-Item $temp -ItemType Directory | Out-Null
+try {
+  # A shortcut failure must roll the engine back as part of the same transaction.
+  $rollbackRoot = "$temp/rollback"
+  New-Item "$rollbackRoot/engine" -ItemType Directory -Force | Out-Null
+  Set-Content "$rollbackRoot/engine/old.txt" 'recover me'
+  Set-Content "$temp/blocked-desktop" 'not a directory'
+  $failed = $false
+  try { Install-DynamicSkin -SourceRoot $repo -InstallRoot $rollbackRoot -DesktopPath "$temp/blocked-desktop" -NodeRuntimePath $NodeRuntimePath } catch { $failed = $true }
+  if (-not $failed -or -not (Test-Path "$rollbackRoot/engine/old.txt")) { throw 'Shortcut failure did not roll back the old engine.' }
+  $partialDesktop = New-Item "$temp/partial-desktop" -ItemType Directory
+  Set-Content "$partialDesktop/Codex Background Manager.lnk" 'original manager shortcut'
+  $locked = [IO.File]::Open("$partialDesktop/Codex Background Manager.lnk", 'Open', 'ReadWrite', 'None')
+  $failed = $false
+  try {
+    try { Install-DynamicSkin -SourceRoot $repo -InstallRoot $rollbackRoot -DesktopPath $partialDesktop -NodeRuntimePath $NodeRuntimePath } catch { $failed = $true }
+  } finally { $locked.Dispose() }
+  if (-not $failed -or -not (Test-Path "$rollbackRoot/engine/old.txt") -or (Test-Path "$partialDesktop/Codex.lnk")) { throw 'Partial shortcut failure did not restore engine and remove the newly created shortcut.' }
+  if ((Get-Content "$partialDesktop/Codex Background Manager.lnk" -Raw).Trim() -ne 'original manager shortcut') { throw 'Failed shortcut transaction overwrote original shortcut.' }
+  $desktop = New-Item "$temp/Desktop" -ItemType Directory
+  Set-Content "$desktop/Codex.lnk" 'original shortcut'
+  $root = "$temp/installed"
+  New-Item "$root/engine" -ItemType Directory -Force | Out-Null
+  Set-Content "$root/engine/old.txt" 'recover me'
+  Set-Content "$root/private.txt" 'preserve me'
+  Install-DynamicSkin -SourceRoot $repo -InstallRoot $root -DesktopPath $desktop -NodeRuntimePath $NodeRuntimePath
+  if ((Get-Content "$desktop/Codex.lnk" -Raw).Trim() -ne 'original shortcut') { throw 'Existing Codex shortcut overwritten.' }
+  $shell = New-Object -ComObject WScript.Shell
+  $link = $shell.CreateShortcut("$desktop/Codex Dynamic Skin.lnk")
+  if ($link.Arguments -notlike '*start-dream-skin.ps1* -PromptRestart') { throw 'Wrong launch shortcut.' }
+  if ($link.IconLocation -notlike '*icons\chatgpt-app-light.ico*' -or -not (Test-Path "$root/icons/chatgpt-app-light.ico")) { throw 'Installed shortcut did not receive the locally registered official icon.' }
+  if (-not (Get-ChildItem "$root/backups" -Recurse -Filter Codex.lnk)) { throw 'Existing Codex shortcut was not backed up.' }
+  if (-not (Test-Path "$root/private.txt")) { throw 'Private state deleted.' }
+  if (-not (Get-ChildItem "$root/backups" -Recurse -Filter old.txt)) { throw 'Old engine not recoverable.' }
+  Set-Content "$temp/fake.exe" 'untrusted'
+  $rejected = $false
+  try { Install-DynamicSkin -SourceRoot $repo -InstallRoot "$temp/rejected" -SkipShortcuts -NodeRuntimePath "$temp/fake.exe" } catch { $rejected = $true }
+  if (-not $rejected -or (Test-Path "$temp/rejected/engine")) { throw 'Untrusted runtime accepted or active engine mutated.' }
+  $nestedRejected = $false
+  $nestedRoot = Join-Path $repo ('engine/nested-test-' + [guid]::NewGuid().ToString('N'))
+  try { Install-DynamicSkin -SourceRoot $repo -InstallRoot $nestedRoot -SkipShortcuts -NodeRuntimePath $NodeRuntimePath } catch { $nestedRejected = $true }
+  if (-not $nestedRejected -or (Test-Path $nestedRoot)) { throw 'Nested source install must be rejected before creating files.' }
+  $customRejected = $false
+  try { Install-DynamicSkin -SourceRoot $repo -InstallRoot "$temp/custom" -DesktopPath ([Environment]::GetFolderPath('Desktop')) -NodeRuntimePath "$temp/fake.exe" } catch {
+    $customRejected = $_.Exception.Message -like 'Custom installation roots*'
+  }
+  if (-not $customRejected -or (Test-Path "$temp/custom")) { throw 'Custom root must be rejected before touching the real desktop or validating runtime.' }
+  'PASS install isolation, backup, shortcuts, rejected runtime'
+} finally {
+  if ([IO.Path]::GetFullPath($temp).StartsWith([IO.Path]::GetTempPath(), [StringComparison]::OrdinalIgnoreCase)) { Remove-Item -LiteralPath $temp -Recurse -Force }
+}

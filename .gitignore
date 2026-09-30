@@ -1,0 +1,12 @@
+work/
+outputs/
+TASK_PROGRESS.md
+.local-evidence/
+dist/
+release-stage/
+node_modules/
+engine/runtime/
+engine/nested-install/
+*.log
+*.lnk
+.DS_Store

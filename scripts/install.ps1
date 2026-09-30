@@ -1,0 +1,133 @@
+﻿[CmdletBinding()]
+param(
+  [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'CodexDynamicSkin'),
+  [string]$DesktopPath = [Environment]::GetFolderPath('Desktop'),
+  [switch]$SkipShortcuts
+)
+$ErrorActionPreference = 'Stop'
+
+function Assert-DynamicSkinTree {
+  param([string]$Path)
+  $item = Get-Item -LiteralPath $Path -Force
+  while ($null -ne $item) {
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse paths are not supported: $Path" }
+    $item = $item.Parent
+  }
+  foreach ($child in Get-ChildItem -LiteralPath $Path -Recurse -Force) {
+    if ($child.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Reparse paths are not supported: $($child.FullName)" }
+  }
+}
+
+function Assert-DynamicSkinNode {
+  param([string]$Path, [string]$ManifestPath)
+  $pin = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+  if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ine $pin.nodeSha256) { throw 'Node runtime SHA256 does not match the pinned official executable.' }
+  $signature = Get-AuthenticodeSignature -LiteralPath $Path
+  if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=OpenJS Foundation(?:,|$)') { throw 'Node runtime must have a valid OpenJS Foundation signature.' }
+}
+
+function Install-DynamicSkin {
+  [CmdletBinding()]
+  param([string]$SourceRoot, [string]$InstallRoot, [string]$DesktopPath, [switch]$SkipShortcuts, [string]$NodeRuntimePath)
+  $source = [IO.Path]::GetFullPath($SourceRoot)
+  $root = [IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
+  if ($root -eq [IO.Path]::GetPathRoot($root).TrimEnd('\') -or $root -ieq $source -or $source.StartsWith($root + '\', [StringComparison]::OrdinalIgnoreCase) -or $root.StartsWith($source.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw 'Unsafe installation root.' }
+  $defaultRoot = [IO.Path]::GetFullPath((Join-Path $env:LOCALAPPDATA 'CodexDynamicSkin')).TrimEnd('\')
+  if (-not $SkipShortcuts -and $root -ine $defaultRoot -and [IO.Path]::GetFullPath($DesktopPath).TrimEnd('\') -ieq [Environment]::GetFolderPath('Desktop').TrimEnd('\')) {
+    throw 'Custom installation roots support only -SkipShortcuts or an isolated -DesktopPath for testing.'
+  }
+  Assert-DynamicSkinTree $source
+  if (-not $NodeRuntimePath) { $NodeRuntimePath = Join-Path $source 'engine/runtime/node/node.exe' }
+  Assert-DynamicSkinNode $NodeRuntimePath (Join-Path $source 'scripts/node-runtime.json')
+  $license = Join-Path (Split-Path $NodeRuntimePath -Parent) 'LICENSE'
+  if (-not (Test-Path -LiteralPath $license -PathType Leaf)) { throw 'Node LICENSE is missing.' }
+  if (Test-Path -LiteralPath $root) { Assert-DynamicSkinTree $root }
+  else { New-Item -ItemType Directory -Path $root -Force | Out-Null; Assert-DynamicSkinTree $root }
+  $token = [guid]::NewGuid().ToString('N')
+  $stage = Join-Path $root ".install-$token"
+  $backup = Join-Path $root "backups/install-$token"
+  New-Item -ItemType Directory -Path $stage -Force | Out-Null
+  $activated = @(); $saved = @(); $changedLinks = @(); $savedLinks = @()
+  try {
+    Copy-Item -LiteralPath (Join-Path $source 'engine') -Destination $stage -Recurse
+    Copy-Item -LiteralPath (Join-Path $source 'scripts') -Destination $stage -Recurse
+    foreach ($name in @('VERSION', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
+      if (Test-Path -LiteralPath (Join-Path $source $name)) { Copy-Item -LiteralPath (Join-Path $source $name) -Destination $stage }
+    }
+    $runtime = Join-Path $stage 'engine/runtime/node'
+    New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+    Copy-Item -LiteralPath $NodeRuntimePath -Destination (Join-Path $runtime 'node.exe') -Force
+    Copy-Item -LiteralPath $license -Destination (Join-Path $runtime 'LICENSE') -Force
+    Assert-DynamicSkinNode (Join-Path $runtime 'node.exe') (Join-Path $stage 'scripts/node-runtime.json')
+    Get-ChildItem -LiteralPath $stage -Recurse -File | Unblock-File
+    if (-not $SkipShortcuts) {
+      $icon = "$env:SystemRoot\System32\shell32.dll,0"
+      try {
+        . (Join-Path $stage 'engine/scripts/common-windows.ps1')
+        $codex = Get-DreamSkinCodexInstall
+        $localIcon = Join-Path $codex.PackageRoot 'app/resources/chatgpt-app-light.ico'
+        if (Test-Path -LiteralPath $localIcon -PathType Leaf) {
+          $iconDirectory = Join-Path $stage 'icons'
+          New-Item -ItemType Directory -Path $iconDirectory -Force | Out-Null
+          Copy-Item -LiteralPath $localIcon -Destination (Join-Path $iconDirectory 'chatgpt-app-light.ico') -Force
+          $icon = Join-Path $root 'icons/chatgpt-app-light.ico'
+        }
+      } catch { Write-Warning 'Official local Codex icon unavailable; using a Windows icon.' }
+    }
+    New-Item -ItemType Directory -Path $backup -Force | Out-Null
+    foreach ($entry in Get-ChildItem -LiteralPath $stage) {
+      $target = Join-Path $root $entry.Name
+      if (Test-Path -LiteralPath $target) { Move-Item -LiteralPath $target -Destination $backup; $saved += $entry.Name }
+      # Authenticode/antivirus may briefly retain a handle to a freshly verified executable.
+      for ($attempt = 0; ; $attempt++) {
+        try { Move-Item -LiteralPath $entry.FullName -Destination $target -ErrorAction Stop; break }
+        catch { if ($attempt -ge 9) { throw }; Start-Sleep -Milliseconds 300 }
+      }
+      $activated += $entry.Name
+    }
+    if (-not $SkipShortcuts) {
+      New-Item -ItemType Directory -Path $DesktopPath -Force | Out-Null
+      Assert-DynamicSkinTree $DesktopPath
+      $launchName = 'Codex'
+      if (Test-Path -LiteralPath (Join-Path $DesktopPath 'Codex.lnk')) {
+        Copy-Item -LiteralPath (Join-Path $DesktopPath 'Codex.lnk') -Destination (Join-Path $backup 'Codex.lnk')
+        $launchName = 'Codex Dynamic Skin'
+      }
+      $shell = New-Object -ComObject WScript.Shell
+      foreach ($spec in @(
+        @($launchName, 'engine/scripts/start-dream-skin.ps1', ' -PromptRestart'),
+        @('Codex Background Manager', 'scripts/manage-background.ps1', ''),
+        @('Restore Codex Appearance', 'engine/scripts/restore-dream-skin.ps1', ' -PromptRestart')
+      )) {
+        $linkPath = Join-Path $DesktopPath ($spec[0] + '.lnk')
+        if (Test-Path -LiteralPath $linkPath) {
+          Copy-Item -LiteralPath $linkPath -Destination (Join-Path $backup ($spec[0] + '.lnk'))
+          $savedLinks += $linkPath
+        }
+        $changedLinks += $linkPath
+        $link = $shell.CreateShortcut($linkPath)
+        $link.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+        $link.Arguments = '-NoProfile -STA -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + (Join-Path $root $spec[1]) + '"' + $spec[2]
+        $link.WorkingDirectory = $root
+        $link.IconLocation = $icon
+        $link.Save()
+      }
+    }
+  } catch {
+    foreach ($linkPath in $changedLinks) {
+      if ($savedLinks -contains $linkPath) { Copy-Item -LiteralPath (Join-Path $backup ([IO.Path]::GetFileName($linkPath))) -Destination $linkPath -Force }
+      elseif (Test-Path -LiteralPath $linkPath -PathType Leaf) { Remove-Item -LiteralPath $linkPath -Force }
+    }
+    foreach ($name in $activated) { Move-Item -LiteralPath (Join-Path $root $name) -Destination $stage }
+    foreach ($name in $saved) { Move-Item -LiteralPath (Join-Path $backup $name) -Destination $root }
+    throw
+  } finally {
+    # The exact staging child is generated above, and never accepts caller input.
+    if (Test-Path -LiteralPath $stage) { Assert-DynamicSkinTree $stage; Remove-Item -LiteralPath $stage -Recurse -Force }
+  }
+  Write-Output "Installed Codex Dynamic Skin at $root. Backup: $backup"
+}
+
+if ($MyInvocation.InvocationName -ne '.') {
+  Install-DynamicSkin -SourceRoot (Split-Path $PSScriptRoot -Parent) -InstallRoot $InstallRoot -DesktopPath $DesktopPath -SkipShortcuts:$SkipShortcuts
+}

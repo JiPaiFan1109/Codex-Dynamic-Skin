@@ -1,0 +1,70 @@
+﻿[CmdletBinding()]
+param(
+  [string]$NodeRuntimePath,
+  [string]$OutputDirectory
+)
+$ErrorActionPreference = 'Stop'
+$repo = Split-Path $PSScriptRoot -Parent
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repo 'dist' }
+. (Join-Path $PSScriptRoot 'install.ps1')
+$pin = Get-Content (Join-Path $PSScriptRoot 'node-runtime.json') -Raw | ConvertFrom-Json
+$version = (Get-Content (Join-Path $repo 'VERSION') -Raw).Trim()
+if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid release version.' }
+$temp = Join-Path ([IO.Path]::GetTempPath()) ('dynamic-build-' + [guid]::NewGuid().ToString('N'))
+$stage = Join-Path $temp 'package'
+New-Item -ItemType Directory -Path $stage -Force | Out-Null
+try {
+  if (-not $NodeRuntimePath) {
+    $archive = Join-Path $temp $pin.archive
+    Invoke-WebRequest -UseBasicParsing -Uri $pin.url -OutFile $archive
+    if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $pin.sha256) { throw 'Official Node archive SHA256 mismatch.' }
+    Expand-Archive -LiteralPath $archive -DestinationPath (Join-Path $temp 'node')
+    $NodeRuntimePath = Join-Path (Join-Path $temp 'node') $pin.nodeEntry
+  }
+  Assert-DynamicSkinNode $NodeRuntimePath (Join-Path $PSScriptRoot 'node-runtime.json')
+  $nodeLicense = Join-Path (Split-Path $NodeRuntimePath -Parent) 'LICENSE'
+  if (-not (Test-Path -LiteralPath $nodeLicense -PathType Leaf)) { throw 'Node LICENSE missing.' }
+  # Exact file allowlist: scratch data, arbitrary images, icons and future local files never enter a release.
+  $files = @(
+    'VERSION','LICENSE','THIRD_PARTY_NOTICES.md','README.md','README.en.md','SECURITY.md','docs/earth-background.md','Install.cmd',
+    'scripts/install.ps1','scripts/manage-background.ps1','scripts/media.ps1','scripts/node-runtime.json',
+    'engine/VERSION',
+    'engine/assets/demo-background.png','engine/assets/theme.json','engine/assets/theme-package-validator.mjs',
+    'engine/assets/selectors.json','engine/assets/safe-css-validator.mjs','engine/assets/safe-css-policy.json',
+    'engine/assets/renderer-inject.js','engine/assets/earth-background.css','engine/assets/dream-skin.css',
+    'engine/scripts/video-windows.ps1','engine/scripts/video-server.mjs','engine/scripts/video-blob.mjs',
+    'engine/scripts/validate-safe-css-file.mjs','engine/scripts/theme-windows.ps1','engine/scripts/start-dream-skin.ps1',
+    'engine/scripts/restore-dream-skin.ps1','engine/scripts/localization-windows.ps1','engine/scripts/injector.mjs',
+    'engine/scripts/image-metadata.mjs','engine/scripts/fast-resume.ps1','engine/scripts/config-utf8.ps1','engine/scripts/common-windows.ps1'
+  )
+  foreach ($relative in $files) {
+    $source = Join-Path $repo $relative
+    if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Release source missing: $relative" }
+    $destination = Join-Path $stage $relative
+    New-Item -ItemType Directory -Path (Split-Path $destination -Parent) -Force | Out-Null
+    Copy-Item -LiteralPath $source -Destination $destination
+  }
+  $runtime = Join-Path $stage 'engine/runtime/node'
+  New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+  Copy-Item -LiteralPath $NodeRuntimePath -Destination (Join-Path $runtime 'node.exe')
+  Copy-Item -LiteralPath $nodeLicense -Destination (Join-Path $runtime 'LICENSE')
+  Assert-DynamicSkinNode (Join-Path $runtime 'node.exe') (Join-Path $stage 'scripts/node-runtime.json')
+  $hashes = @(Get-ChildItem -LiteralPath $stage -Recurse -File | Sort-Object FullName | ForEach-Object {
+    (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.FullName.Substring($stage.Length + 1).Replace('\','/')
+  })
+  [IO.File]::WriteAllLines((Join-Path $stage 'SHA256SUMS.txt'), $hashes, (New-Object Text.UTF8Encoding($false)))
+  New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+  $zipPath = Join-Path ([IO.Path]::GetFullPath($OutputDirectory)) "Codex-Dynamic-Skin-$version-windows-x64.zip"
+  if (Test-Path -LiteralPath $zipPath) { throw "Output already exists: $zipPath" }
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  [IO.Compression.ZipFile]::CreateFromDirectory($stage, $zipPath, [IO.Compression.CompressionLevel]::Optimal, $false)
+  $sum = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + [IO.Path]::GetFileName($zipPath)
+  [IO.File]::WriteAllText(($zipPath + '.sha256'), $sum + "`n", (New-Object Text.UTF8Encoding($false)))
+  Write-Output $zipPath
+  Write-Output $sum
+} finally {
+  if ([IO.Path]::GetFullPath($temp).StartsWith([IO.Path]::GetTempPath(), [StringComparison]::OrdinalIgnoreCase)) {
+    Assert-DynamicSkinTree $temp
+    Remove-Item -LiteralPath $temp -Recurse -Force
+  }
+}

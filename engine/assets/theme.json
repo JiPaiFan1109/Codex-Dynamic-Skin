@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "preset-neutral",
+  "name": "Night Sky",
+  "brandSubtitle": "CODEX DREAM SKIN",
+  "tagline": "Your background, your workspace.",
+  "projectPrefix": "选择项目 · ",
+  "projectLabel": "◉  选择项目",
+  "statusText": "DREAM SKIN ONLINE",
+  "quote": "MAKE SOMETHING WONDERFUL",
+  "image": "demo-background.png",
+  "appearance": "auto",
+  "art": {
+    "focusX": 0.5,
+    "focusY": 0.5,
+    "safeArea": "left",
+    "taskMode": "full"
+  }
+}
