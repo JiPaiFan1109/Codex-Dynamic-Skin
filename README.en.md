@@ -8,7 +8,7 @@ Image and video backgrounds for the Windows Codex desktop app, with readable cha
 
 [Watch the high-quality MP4 demo (about 8 seconds)](docs/media/earth-demo.mp4) · [Get the Earth background](docs/earth-background.md)
 
-Recorded from a real Codex window, cropped to the app area, with the sidebar account temporarily anonymized. The inline GIF is about 5 MB. The original Earth video is not included in the repository or installer.
+Recorded from a real Codex window, cropped to the app area, with the sidebar account temporarily anonymized. The inline GIF runs for about 16 seconds, is about 7.7 MB, and has a smoothed loop transition. The original Earth video is not included in the repository or installer.
 
 <details>
 <summary>Static preview</summary>
