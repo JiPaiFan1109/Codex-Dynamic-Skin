@@ -19,9 +19,9 @@ Recorded from a real Codex window, cropped to the app area, with the sidebar acc
 
 ## Install
 
-Version **0.1.0** targets **Windows x64** with the official Microsoft Store **OpenAI.Codex** package already installed. Other client distributions, macOS, Linux, and ARM64 are outside this release's support scope.
+Version **0.1.1** targets **Windows x64** with the official Microsoft Store **OpenAI.Codex** package already installed. Other client distributions, macOS, Linux, and ARM64 are outside this release's support scope.
 
-1. Download `Codex-Dynamic-Skin-0.1.0-windows-x64.zip` from [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases). GitHub's automatic source archives are not installers.
+1. Download `Codex-Dynamic-Skin-0.1.1-windows-x64.zip` from [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases). GitHub's automatic source archives are not installers.
 2. **Extract the entire ZIP** to a normal local folder, then double-click `Install.cmd`.
 3. Launch using the desktop **Codex** shortcut. If that name already exists, the original shortcut is retained and the new one is named **Codex Dynamic Skin**.
 4. Open **Codex Background Manager** on the desktop to select and apply an image or video. Save your work before following any restart prompt.

@@ -19,9 +19,9 @@
 
 ## 安装
 
-首发版本 **0.1.0** 面向 **Windows x64**，需要已安装官方 Microsoft Store **OpenAI.Codex** 包。其他来源的客户端、macOS、Linux 和 ARM64 不在本版本支持范围内。
+当前版本 **0.1.1** 面向 **Windows x64**，需要已安装官方 Microsoft Store **OpenAI.Codex** 包。其他来源的客户端、macOS、Linux 和 ARM64 不在本版本支持范围内。
 
-1. 从 [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases) 下载 `Codex-Dynamic-Skin-0.1.0-windows-x64.zip`，不要下载 GitHub 自动生成的源码 ZIP 代替安装包。
+1. 从 [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases) 下载 `Codex-Dynamic-Skin-0.1.1-windows-x64.zip`，不要下载 GitHub 自动生成的源码 ZIP 代替安装包。
 2. 将 ZIP **完整解压**到普通本地文件夹，再双击 `Install.cmd`。
 3. 通过桌面 **Codex** 快捷方式启动。已有同名快捷方式时会保留原快捷方式，新入口命名为 **Codex Dynamic Skin**。
 4. 打开桌面 **Codex Background Manager**，选择图片或视频并应用。涉及重启时按提示操作，先保存当前工作。

@@ -160,6 +160,7 @@ export function parseArgs(argv) {
     operationUiState: null,
     operationMessage: null,
     operationToken: null,
+    silentUi: false,
     videoState: null,
   };
   for (let i = 0; i < argv.length; i += 1) {
@@ -180,6 +181,7 @@ export function parseArgs(argv) {
     else if (arg === "--operation-ui-state") options.operationUiState = argv[++i];
     else if (arg === "--operation-message") options.operationMessage = argv[++i];
     else if (arg === "--operation-token") options.operationToken = argv[++i];
+    else if (arg === "--silent-ui") options.silentUi = true;
     else if (arg === "--video-state") options.videoState = path.resolve(argv[++i]);
     else if (arg === "--reload") options.reload = true;
     else if (arg === "--self-test") options.mode = "self-test";
@@ -1007,6 +1009,10 @@ function nextOperationToken() {
   return `${process.pid}:${Date.now()}:${operationSequence}`;
 }
 
+export function shouldShowOperationUi(options) {
+  return !options.silentUi && (options.mode === "once" || options.mode === "remove");
+}
+
 function operationKindMessage(kind) {
   if (kind === "pause") return "正在暂停皮肤…";
   if (kind === "switch") return "正在切换主题…";
@@ -1415,7 +1421,10 @@ export async function verifySession(
       windowPass, documentPass, viewportPass, structurePass,
       nativeWindowPass, fallbackWindowPass,
     };
-    const homePass = !homeScope || (
+    const currentHomeFallback = result.scope?.baseState === 'home' && l1ScopePass &&
+      Boolean(result.shell?.visible && result.sidebar?.visible) &&
+      Boolean(result.composer?.visible || result.genericInput?.visible);
+    const homePass = !homeScope || currentHomeFallback || (
       result.homePresent && Boolean(result.homeSurface?.visible) &&
       ((result.hero?.visible && result.hero.width >= 280 && result.hero.height >= 120) ||
         Boolean(result.genericMain?.visible)) &&
@@ -1510,7 +1519,7 @@ async function runFinishOperation(options) {
 
 async function runOneShot(options) {
   const connected = await connectCodexTargets(options.port, options.timeoutMs, options.browserId);
-  const operationToken = options.mode === "once" || options.mode === "remove"
+  const operationToken = shouldShowOperationUi(options)
     ? options.operationToken ?? nextOperationToken()
     : null;
   if (operationToken) {

@@ -583,7 +583,7 @@ try {
         $onceArguments = @(
           $Injector, '--once', '--port', "$Port",
           '--browser-id', $cdpIdentity.BrowserId, '--theme-dir', $themePaths.Active,
-          '--timeout-ms', '15000'
+          '--timeout-ms', '15000', '--silent-ui'
         )
         $onceArguments += $injectorVideoArgs
         $once = Invoke-DreamSkinNative -FilePath $node.Path -ArgumentList $onceArguments
