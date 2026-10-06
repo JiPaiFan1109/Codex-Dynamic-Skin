@@ -164,8 +164,12 @@ function Stop-DreamSkinRecordedVideo {
     Remove-Item -LiteralPath "$($State.videoReadyPath)" -Force -ErrorAction SilentlyContinue
     return $true
   }
-  $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue
   $startedAt = $handle.StartTime.ToUniversalTime().ToString('o')
+  if ($State.videoStartedAt -and $startedAt -cne "$($State.videoStartedAt)") {
+    Remove-Item -LiteralPath "$($State.videoReadyPath)" -Force -ErrorAction SilentlyContinue
+    return $false
+  }
+  $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue
   $identityMatches = $false
   if ($process) {
     $processPath = Get-DreamSkinProcessExecutablePath -ProcessInfo $process

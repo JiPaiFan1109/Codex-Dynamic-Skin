@@ -342,12 +342,26 @@ try {
   $startFailureCategory = 'state-reconciliation-failed'
   $pauseCleared = $false
   try {
-    $recordedInjectorStopped = Stop-DreamSkinRecordedInjector -State $previousState
-    if (-not $recordedInjectorStopped) {
+    $recordedBrowserChanged = $null -ne $previousState -and $previousState.browserId -and
+      $null -ne $cdpIdentity -and "$($previousState.browserId)" -cne "$($cdpIdentity.BrowserId)"
+    if ($recordedBrowserChanged) {
       $staleStatePath = Archive-DreamSkinStateFile -Path $StatePath
-      Write-Warning "Archived stale Dream Skin state at $staleStatePath"
+      Write-Warning "Archived state from a closed Codex browser at $staleStatePath"
+      if ((Get-DreamSkinProcessStartedAt -ProcessId ([int]$previousState.injectorPid)) -ceq "$($previousState.injectorStartedAt)") {
+        $null = Stop-DreamSkinRecordedInjector -State $previousState
+      }
+      if ($previousState.videoPid -and
+        (Get-DreamSkinProcessStartedAt -ProcessId ([int]$previousState.videoPid)) -ceq "$($previousState.videoStartedAt)") {
+        $null = Stop-DreamSkinRecordedVideo -State $previousState
+      }
+    } else {
+      $recordedInjectorStopped = Stop-DreamSkinRecordedInjector -State $previousState
+      if (-not $recordedInjectorStopped) {
+        $staleStatePath = Archive-DreamSkinStateFile -Path $StatePath
+        Write-Warning "Archived stale Dream Skin state at $staleStatePath"
+      }
+      $null = Stop-DreamSkinRecordedVideo -State $previousState
     }
-    $null = Stop-DreamSkinRecordedVideo -State $previousState
     # Keep a paused, already-running watcher paused until all state checks and
     # restart consent have succeeded. A cancelled prompt stays side-effect free.
     Set-DreamSkinPaused -Paused $false -StateRoot $StateRoot | Out-Null

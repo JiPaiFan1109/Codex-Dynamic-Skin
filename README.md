@@ -1,6 +1,11 @@
 # Codex Dynamic Skin
 
-[English](README.en.md) · **中文**
+[English](README.en.md) · **中文** · [更新记录](CHANGELOG.md)
+
+[![Latest release](https://img.shields.io/github/v/release/JiPaiFan1109/Codex-Dynamic-Skin?display_name=tag&sort=semver)](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/JiPaiFan1109/Codex-Dynamic-Skin)](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases)
+![Windows x64](https://img.shields.io/badge/Windows-x64-0078D4)
+[![License](https://img.shields.io/github/license/JiPaiFan1109/Codex-Dynamic-Skin)](LICENSE)
 
 为 Windows 版 Codex 桌面客户端添加图片或动态视频背景，保留聊天区的可读性。基于 [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18 开发的社区项目，**非 OpenAI 官方产品，与 OpenAI 无隶属关系**。
 
@@ -17,11 +22,23 @@
 
 </details>
 
+## 最近更新
+
+每个公开版本都会同步更新本表、[完整更新记录](CHANGELOG.md)和 GitHub Release Notes。表中只列出已经完成验证并正式发布的版本。
+
+| 日期 | 版本 | 主要变化 |
+| --- | --- | --- |
+| 2026-10-07 | 0.1.2 | 修复升级后启动回滚与旧 PID 复用；新增约 0.7 秒的轻量窗口唤回入口 |
+| 2026-10-02 | [0.1.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.1) | 自动验证改为静默；兼容 Codex 26.928 首页结构 |
+| 2026-10-01 | [0.1.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.0) | 首次公开发布：静态图片、动态视频、恢复与安装流程 |
+
+项目以经过测试的有效改动为发布单位，不承诺为了维持固定频率而发布无实际内容的版本。
+
 ## 安装
 
-当前版本 **0.1.1** 面向 **Windows x64**，需要已安装官方 Microsoft Store **OpenAI.Codex** 包。其他来源的客户端、macOS、Linux 和 ARM64 不在本版本支持范围内。
+当前版本 **0.1.2** 面向 **Windows x64**，需要已安装官方 Microsoft Store **OpenAI.Codex** 包。其他来源的客户端、macOS、Linux 和 ARM64 不在本版本支持范围内。
 
-1. 从 [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases) 下载 `Codex-Dynamic-Skin-0.1.1-windows-x64.zip`，不要下载 GitHub 自动生成的源码 ZIP 代替安装包。
+1. 从 [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases) 下载 `Codex-Dynamic-Skin-0.1.2-windows-x64.zip`，不要下载 GitHub 自动生成的源码 ZIP 代替安装包。
 2. 将 ZIP **完整解压**到普通本地文件夹，再双击 `Install.cmd`。
 3. 通过桌面 **Codex** 快捷方式启动。已有同名快捷方式时会保留原快捷方式，新入口命名为 **Codex Dynamic Skin**。
 4. 打开桌面 **Codex Background Manager**，选择图片或视频并应用。涉及重启时按提示操作，先保存当前工作。

@@ -26,6 +26,19 @@ function Assert-DynamicSkinNode {
   if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=OpenJS Foundation(?:,|$)') { throw 'Node runtime must have a valid OpenJS Foundation signature.' }
 }
 
+function New-DynamicSkinQuickLauncher {
+  param([string]$StageRoot)
+  $source=Join-Path $StageRoot 'engine/scripts/quick-launcher.cs'
+  $directory=Join-Path $StageRoot 'engine/launcher'
+  $output=Join-Path $directory 'CodexDynamicSkinLauncher.exe'
+  $compiler=@("$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\csc.exe","$env:SystemRoot\Microsoft.NET\Framework\v4.0.30319\csc.exe")|Where-Object{Test-Path -LiteralPath $_ -PathType Leaf}|Select-Object -First 1
+  if(-not$compiler){throw 'Microsoft .NET Framework C# compiler is required to build the fast launcher.'}
+  New-Item -ItemType Directory -Path $directory -Force|Out-Null
+  & $compiler /nologo /target:winexe /optimize+ /reference:System.Web.Extensions.dll ("/out:$output") $source
+  if($LASTEXITCODE-ne0 -or -not(Test-Path -LiteralPath $output -PathType Leaf)){throw 'Fast launcher compilation failed.'}
+  return $output
+}
+
 function Install-DynamicSkin {
   [CmdletBinding()]
   param([string]$SourceRoot, [string]$InstallRoot, [string]$DesktopPath, [switch]$SkipShortcuts, [string]$NodeRuntimePath)
@@ -59,6 +72,7 @@ function Install-DynamicSkin {
     Copy-Item -LiteralPath $NodeRuntimePath -Destination (Join-Path $runtime 'node.exe') -Force
     Copy-Item -LiteralPath $license -Destination (Join-Path $runtime 'LICENSE') -Force
     Assert-DynamicSkinNode (Join-Path $runtime 'node.exe') (Join-Path $stage 'scripts/node-runtime.json')
+    $quickLauncher=New-DynamicSkinQuickLauncher -StageRoot $stage
     Get-ChildItem -LiteralPath $stage -Recurse -File | Unblock-File
     if (-not $SkipShortcuts) {
       $icon = "$env:SystemRoot\System32\shell32.dll,0"
@@ -95,9 +109,9 @@ function Install-DynamicSkin {
       }
       $shell = New-Object -ComObject WScript.Shell
       foreach ($spec in @(
-        @($launchName, 'engine/scripts/start-dream-skin.ps1', ' -PromptRestart'),
-        @('Codex Background Manager', 'scripts/manage-background.ps1', ''),
-        @('Restore Codex Appearance', 'engine/scripts/restore-dream-skin.ps1', ' -PromptRestart')
+        @($launchName, 'engine/launcher/CodexDynamicSkinLauncher.exe', '', $true),
+        @('Codex Background Manager', 'scripts/manage-background.ps1', '', $false),
+        @('Restore Codex Appearance', 'engine/scripts/restore-dream-skin.ps1', ' -PromptRestart', $false)
       )) {
         $linkPath = Join-Path $DesktopPath ($spec[0] + '.lnk')
         if (Test-Path -LiteralPath $linkPath) {
@@ -106,8 +120,8 @@ function Install-DynamicSkin {
         }
         $changedLinks += $linkPath
         $link = $shell.CreateShortcut($linkPath)
-        $link.TargetPath = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
-        $link.Arguments = '-NoProfile -STA -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + (Join-Path $root $spec[1]) + '"' + $spec[2]
+        $link.TargetPath = if($spec[3]){Join-Path $root $spec[1]}else{"$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"}
+        $link.Arguments = if($spec[3]){$spec[2]}else{'-NoProfile -STA -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + (Join-Path $root $spec[1]) + '"' + $spec[2]}
         $link.WorkingDirectory = $root
         $link.IconLocation = $icon
         $link.Save()

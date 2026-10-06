@@ -1276,6 +1276,17 @@ function Stop-DreamSkinRecordedInjector {
   $processId = [int]$State.injectorPid
   $processHandle = Get-Process -Id $processId -ErrorAction SilentlyContinue
   if (-not $processHandle) { return $true }
+  try {
+    $startedAt = $processHandle.StartTime.ToUniversalTime().ToString('o')
+  } catch {
+    if ($processHandle.HasExited) { return $true }
+    throw "The recorded injector PID $processId is running, but its start time cannot be inspected. State was preserved."
+  }
+  # A recycled PID belongs to another process even if its executable or command
+  # line cannot be inspected. Archive the stale state without touching it.
+  if ($State.injectorStartedAt -and $startedAt -cne "$($State.injectorStartedAt)") {
+    return $false
+  }
   $process = Get-CimInstance Win32_Process -Filter "ProcessId = $processId" -ErrorAction SilentlyContinue
   if (-not $process) {
     if ($processHandle.HasExited) { return $true }
@@ -1309,12 +1320,6 @@ function Stop-DreamSkinRecordedInjector {
   if ($State.browserId) {
     $browserPattern = '(?:^|\s)(?i:--browser-id)(?:=|\s+)' + [regex]::Escape("$($State.browserId)") + '(?=$|\s)'
     $injectorMatches = $injectorMatches -and [regex]::IsMatch($commandLine, $browserPattern)
-  }
-  try {
-    $startedAt = $processHandle.StartTime.ToUniversalTime().ToString('o')
-  } catch {
-    if ($processHandle.HasExited) { return $true }
-    throw "The recorded injector PID $processId is running, but its start time cannot be inspected. State was preserved."
   }
   $startMatches = -not $State.injectorStartedAt -or $startedAt -eq "$($State.injectorStartedAt)"
   $identityMatches = [bool]($isNodeExecutable -and $nodeMatches -and $injectorMatches -and $startMatches)

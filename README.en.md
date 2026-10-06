@@ -1,6 +1,11 @@
 # Codex Dynamic Skin
 
-**English** · [中文](README.md)
+**English** · [中文](README.md) · [Changelog](CHANGELOG.md)
+
+[![Latest release](https://img.shields.io/github/v/release/JiPaiFan1109/Codex-Dynamic-Skin?display_name=tag&sort=semver)](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/latest)
+[![Release date](https://img.shields.io/github/release-date/JiPaiFan1109/Codex-Dynamic-Skin)](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases)
+![Windows x64](https://img.shields.io/badge/Windows-x64-0078D4)
+[![License](https://img.shields.io/github/license/JiPaiFan1109/Codex-Dynamic-Skin)](LICENSE)
 
 Image and video backgrounds for the Windows Codex desktop app, with readable chat surfaces. A community project based on [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18. **Not an official OpenAI product or affiliated with OpenAI.**
 
@@ -17,11 +22,23 @@ Recorded from a real Codex window, cropped to the app area, with the sidebar acc
 
 </details>
 
+## Recent updates
+
+Every public version updates this table, the full [changelog](CHANGELOG.md), and its GitHub Release Notes. Only verified, published releases appear here.
+
+| Date | Version | Main changes |
+| --- | --- | --- |
+| 2026-10-07 | 0.1.2 | Fix startup rollback after app updates and recycled PIDs; add a lightweight window activation path averaging about 0.7 seconds locally |
+| 2026-10-02 | [0.1.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.1) | Make automatic verification silent; support the Codex 26.928 home structure |
+| 2026-10-01 | [0.1.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.0) | Initial public release with image/video backgrounds, recovery, and packaging |
+
+Releases are driven by tested, useful changes rather than an artificial update schedule.
+
 ## Install
 
-Version **0.1.1** targets **Windows x64** with the official Microsoft Store **OpenAI.Codex** package already installed. Other client distributions, macOS, Linux, and ARM64 are outside this release's support scope.
+Version **0.1.2** targets **Windows x64** with the official Microsoft Store **OpenAI.Codex** package already installed. Other client distributions, macOS, Linux, and ARM64 are outside this release's support scope.
 
-1. Download `Codex-Dynamic-Skin-0.1.1-windows-x64.zip` from [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases). GitHub's automatic source archives are not installers.
+1. Download `Codex-Dynamic-Skin-0.1.2-windows-x64.zip` from [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases). GitHub's automatic source archives are not installers.
 2. **Extract the entire ZIP** to a normal local folder, then double-click `Install.cmd`.
 3. Launch using the desktop **Codex** shortcut. If that name already exists, the original shortcut is retained and the new one is named **Codex Dynamic Skin**.
 4. Open **Codex Background Manager** on the desktop to select and apply an image or video. Save your work before following any restart prompt.
