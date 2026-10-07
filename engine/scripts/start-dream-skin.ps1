@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
   [int]$Port = 9345,
   [switch]$RestartExisting,
@@ -79,9 +79,16 @@ try {
   Write-Host 'Opening Codex Dream Skin...'
   $currentCodex = Get-DreamSkinCodexInstall
   $codex = $currentCodex
+  $openingProfile = Join-Path $StateRoot 'cdp-profile'
+  $openingState = Read-DreamSkinState -Path (Join-Path $StateRoot 'state.json')
+  $openingPort = if ($null -ne $openingState -and $openingState.port) { [int]$openingState.port } else { $Port }
+  $openingProcesses = @(Get-DreamSkinCodexProcesses -Codex $currentCodex)
+  $openingInstances = Get-DreamSkinCodexInstanceStatus `
+    -Processes $openingProcesses -Port $openingPort -ProfilePath $openingProfile
+  $coexistingProfiles = @($openingInstances.Managed).Count -gt 0 -and -not $openingInstances.IsExclusive
   $fastState = $null
   if (-not $PortExplicit -and -not $ProfilePathExplicit -and -not $ForegroundInjector -and
-      -not $RestartExisting -and -not $ResultToken) {
+      -not $RestartExisting -and -not $ResultToken -and -not $coexistingProfiles) {
     $fastState = Get-DreamSkinFastResumeCandidate -StateRoot $StateRoot -Codex $currentCodex
   }
   if ($null -ne $fastState) {
@@ -89,10 +96,7 @@ try {
     $null = Start-DreamSkinCodex -Codex $currentCodex -Arguments $fastArguments
     Write-Host ('Existing window opened after {0:N2} seconds; checking playback...' -f $startupTimer.Elapsed.TotalSeconds)
   } elseif (-not $PortExplicit -and -not $ProfilePathExplicit -and -not $ForegroundInjector -and
-            -not $RestartExisting -and -not $ResultToken) {
-    $openingProfile = Join-Path $StateRoot 'cdp-profile'
-    $openingState = Read-DreamSkinState -Path (Join-Path $StateRoot 'state.json')
-    $openingPort = if ($null -ne $openingState -and $openingState.port) { [int]$openingState.port } else { $Port }
+            -not $RestartExisting -and -not $ResultToken -and -not $coexistingProfiles) {
     $backgroundApp = @(Get-DreamSkinCodexProcesses -Codex $currentCodex | Where-Object {
       Test-DreamSkinBackgroundWindowProcess -Process $_ -Port $openingPort -ProfilePath $openingProfile
     })
@@ -162,6 +166,21 @@ try {
   }
 
   $currentProcesses = Get-DreamSkinCodexProcesses -Codex $currentCodex
+  $currentInstances = Get-DreamSkinCodexInstanceStatus `
+    -Processes $currentProcesses -Port $Port -ProfilePath $ProfilePath
+  $closedExistingCodex = $false
+  $coexistenceAction = Resolve-DreamSkinCodexCoexistenceAction `
+    -Status $currentInstances -RestartExisting:$RestartExisting -PromptRestart:$PromptRestart `
+    -Message (Get-DreamSkinText -Key 'MultipleInstancesPrompt' -Language $language)
+  if ($coexistenceAction -ceq 'cancel') {
+    Write-Host (Get-DreamSkinText -Key 'LaunchCancelled' -Language $language)
+    exit 0
+  }
+  if ($coexistenceAction -ceq 'restart') {
+    Stop-DreamSkinCodex -Codex $currentCodex -AllowForce
+    $currentProcesses = @()
+    $closedExistingCodex = $true
+  }
   $codexToStop = $currentCodex
   $cdpIdentity = Get-DreamSkinVerifiedCdpIdentity -Port $Port -Codex $currentCodex
   if ($null -eq $cdpIdentity) {
@@ -214,7 +233,6 @@ try {
   } else {
     Get-DreamSkinCodexProcesses -Codex $codexToStop
   }
-  $closedExistingCodex = $false
   if (-not $debugReady -and $codexProcesses.Count -gt 0) {
     $restartAuthorized = [bool]$RestartExisting
     if (-not $restartAuthorized -and $PromptRestart) {

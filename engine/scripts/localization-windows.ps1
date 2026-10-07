@@ -1,4 +1,4 @@
-﻿function Resolve-DreamSkinLanguage {
+function Resolve-DreamSkinLanguage {
   param(
     [string]$Language = $env:DREAMSKIN_LANG,
     [string]$StateRoot = ''
@@ -109,6 +109,7 @@ function Get-DreamSkinText {
       UpdateQuestion = 'Open the GitHub download page?'; UpToDate = 'Codex Dream Skin {0} is up to date.'
       UpdateFailed = 'Could not check for updates.'
       RestartPrompt = 'Codex must restart once to enable Dream Skin. Unsaved input may be lost. Restart now?'
+      MultipleInstancesPrompt = 'Dream Skin and another Codex profile are both open. To keep Dream Skin as the only active Codex session, both windows must close and Dream Skin must restart. Unsaved input and running tasks may be interrupted. Continue?'
       LaunchCancelled = 'Dream Skin launch was cancelled; Codex was not changed.'
       RestoreClose = 'Restore will close Codex, remove Dream Skin and its CDP session, then reopen the official app. Continue?'
       RestoreCloseNoRelaunch = 'Restore will close Codex and remove Dream Skin plus its CDP session. Continue?'
@@ -168,6 +169,7 @@ function Get-DreamSkinText {
       UpdateQuestion = '是否打开 GitHub 下载页面？'; UpToDate = 'Codex Dream Skin {0} 已是最新版本。'
       UpdateFailed = '无法检查更新。'
       RestartPrompt = 'Codex 需要重启一次才能启用 Dream Skin，未保存的输入可能丢失。现在重启吗？'
+      MultipleInstancesPrompt = 'Dream Skin 与另一套 Codex 配置实例正在同时运行。若要只保留 Dream Skin，需要关闭两套窗口并重新启动 Dream Skin；未发送的输入和运行中的任务可能中断。是否继续？'
       LaunchCancelled = '已取消启动 Dream Skin；Codex 未发生改变。'
       RestoreClose = '恢复操作将关闭 Codex，移除 Dream Skin 及其 CDP 会话，然后重新打开官方应用。是否继续？'
       RestoreCloseNoRelaunch = '恢复操作将关闭 Codex，并移除 Dream Skin 及其 CDP 会话。是否继续？'

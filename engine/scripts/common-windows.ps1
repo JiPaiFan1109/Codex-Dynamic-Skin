@@ -1,4 +1,4 @@
-﻿. (Join-Path $PSScriptRoot 'config-utf8.ps1')
+. (Join-Path $PSScriptRoot 'config-utf8.ps1')
 
 $script:DreamSkinStartResultCategories = @(
   'none',
@@ -508,6 +508,59 @@ function Test-DreamSkinCommandLineToken {
   if (-not $CommandLine -or -not $Token) { return $false }
   $pattern = '(?i)(?:^|[\s"])' + [regex]::Escape($Token) + '(?=$|[\s"])'
   return [regex]::IsMatch($CommandLine, $pattern)
+}
+
+function Get-DreamSkinCodexMainProcesses {
+  param([AllowEmptyCollection()][object[]]$Processes = @())
+  $processIds = @{}
+  foreach ($process in $Processes) {
+    $processId = [int]$process.ProcessId
+    if ($processId -gt 0) { $processIds[$processId] = $true }
+  }
+  return @($Processes | Where-Object {
+    -not $processIds.ContainsKey([int]$_.ParentProcessId)
+  })
+}
+
+function Get-DreamSkinCodexInstanceStatus {
+  param(
+    [AllowEmptyCollection()][object[]]$Processes = @(),
+    [Parameter(Mandatory = $true)][int]$Port,
+    [Parameter(Mandatory = $true)][string]$ProfilePath
+  )
+  Assert-DreamSkinPort -Port $Port
+  $profile = [System.IO.Path]::GetFullPath($ProfilePath)
+  $managed = @()
+  $foreign = @()
+  foreach ($process in @(Get-DreamSkinCodexMainProcesses -Processes $Processes)) {
+    $commandLine = "$($process.CommandLine)"
+    $isManaged =
+      (Test-DreamSkinCommandLineToken -CommandLine $commandLine -Token '--remote-debugging-address=127.0.0.1') -and
+      (Test-DreamSkinCommandLineToken -CommandLine $commandLine -Token "--remote-debugging-port=$Port") -and
+      (Test-DreamSkinCommandLineToken -CommandLine $commandLine -Token "--user-data-dir=$profile")
+    if ($isManaged) { $managed += $process } else { $foreign += $process }
+  }
+  return [pscustomobject]@{
+    Managed = @($managed)
+    Foreign = @($foreign)
+    IsExclusive = ($managed.Count -eq 1 -and $foreign.Count -eq 0)
+  }
+}
+
+function Resolve-DreamSkinCodexCoexistenceAction {
+  param(
+    [Parameter(Mandatory = $true)][object]$Status,
+    [switch]$RestartExisting,
+    [switch]$PromptRestart,
+    [Parameter(Mandatory = $true)][string]$Message
+  )
+  if (@($Status.Managed).Count -eq 0 -or [bool]$Status.IsExclusive) { return 'continue' }
+  if ($RestartExisting) { return 'restart' }
+  if ($PromptRestart) {
+    if (Confirm-DreamSkinRestart -Message $Message) { return 'restart' }
+    return 'cancel'
+  }
+  throw 'Dream Skin and another Codex profile are active. Close the other Codex window before continuing.'
 }
 
 function Get-DreamSkinCodexDebugArgumentStatus {

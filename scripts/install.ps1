@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
   [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'CodexDynamicSkin'),
   [string]$DesktopPath = [Environment]::GetFolderPath('Desktop'),
@@ -39,6 +39,59 @@ function New-DynamicSkinQuickLauncher {
   return $output
 }
 
+function Copy-DynamicSkinLegacyStateToStage {
+  param(
+    [Parameter(Mandatory)][string]$LegacyRoot,
+    [Parameter(Mandatory)][string]$InstallRoot,
+    [Parameter(Mandatory)][string]$StageRoot
+  )
+  $legacy=[IO.Path]::GetFullPath($LegacyRoot).TrimEnd('\')
+  $target=[IO.Path]::GetFullPath($InstallRoot).TrimEnd('\')
+  $stage=[IO.Path]::GetFullPath($StageRoot).TrimEnd('\')
+  if(-not(Test-Path -LiteralPath $legacy -PathType Container) -or
+    (Test-Path -LiteralPath (Join-Path $target 'active-theme')) -or
+    (Test-Path -LiteralPath (Join-Path $target 'video-theme.json'))){
+    return [pscustomobject]@{Migrated=$false;VideoMigrated=$false}
+  }
+  Assert-DynamicSkinTree $legacy
+  foreach($name in @('active-theme','themes','images','media')){
+    $sourcePath=Join-Path $legacy $name
+    if(Test-Path -LiteralPath $sourcePath -PathType Container){
+      Copy-Item -LiteralPath $sourcePath -Destination $stage -Recurse
+    }
+  }
+  $videoMigrated=$false
+  $videoConfigPath=Join-Path $legacy 'video-theme.json'
+  if(Test-Path -LiteralPath $videoConfigPath -PathType Leaf){
+    try{
+      $config=Get-Content -LiteralPath $videoConfigPath -Raw|ConvertFrom-Json -ErrorAction Stop
+      $legacyMedia=[IO.Path]::GetFullPath((Join-Path $legacy 'media')).TrimEnd('\')
+      $videoPath=[IO.Path]::GetFullPath("$($config.filePath)")
+      if("$($config.schema)"-cne'codex-dream-skin-video/1' -or
+        -not$videoPath.StartsWith($legacyMedia+'\',[StringComparison]::OrdinalIgnoreCase) -or
+        -not(Test-Path -LiteralPath $videoPath -PathType Leaf)){
+        throw 'Legacy video configuration is outside the managed media directory.'
+      }
+      $video=Get-Item -LiteralPath $videoPath
+      $hash=(Get-FileHash -LiteralPath $videoPath -Algorithm SHA256).Hash.ToLowerInvariant()
+      if($video.Length-ne[int64]$config.expectedSize -or $hash-ine"$($config.expectedSha256)"){
+        throw 'Legacy video configuration does not match its media file.'
+      }
+      $relativeVideo=$videoPath.Substring($legacyMedia.Length).TrimStart('\')
+      $config.filePath=Join-Path (Join-Path $target 'media') $relativeVideo
+      $utf8=New-Object Text.UTF8Encoding($false)
+      [IO.File]::WriteAllText((Join-Path $stage 'video-theme.json'),($config|ConvertTo-Json -Compress),$utf8)
+      $videoMigrated=$true
+    }catch{
+      Write-Warning "Legacy dynamic video was not migrated: $($_.Exception.Message)"
+    }
+  }
+  return [pscustomobject]@{
+    Migrated=(Test-Path -LiteralPath (Join-Path $stage 'active-theme') -PathType Container)
+    VideoMigrated=$videoMigrated
+  }
+}
+
 function Install-DynamicSkin {
   [CmdletBinding()]
   param([string]$SourceRoot, [string]$InstallRoot, [string]$DesktopPath, [switch]$SkipShortcuts, [string]$NodeRuntimePath)
@@ -73,6 +126,11 @@ function Install-DynamicSkin {
     Copy-Item -LiteralPath $license -Destination (Join-Path $runtime 'LICENSE') -Force
     Assert-DynamicSkinNode (Join-Path $runtime 'node.exe') (Join-Path $stage 'scripts/node-runtime.json')
     $quickLauncher=New-DynamicSkinQuickLauncher -StageRoot $stage
+    if($root -ieq$defaultRoot){
+      $legacyRoot=Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
+      $migration=Copy-DynamicSkinLegacyStateToStage -LegacyRoot $legacyRoot -InstallRoot $root -StageRoot $stage
+      if($migration.Migrated){Write-Output 'Migrated the existing Dream Skin theme to Codex Dynamic Skin.'}
+    }
     Get-ChildItem -LiteralPath $stage -Recurse -File | Unblock-File
     if (-not $SkipShortcuts) {
       $icon = "$env:SystemRoot\System32\shell32.dll,0"
@@ -103,10 +161,6 @@ function Install-DynamicSkin {
       New-Item -ItemType Directory -Path $DesktopPath -Force | Out-Null
       Assert-DynamicSkinTree $DesktopPath
       $launchName = 'Codex'
-      if (Test-Path -LiteralPath (Join-Path $DesktopPath 'Codex.lnk')) {
-        Copy-Item -LiteralPath (Join-Path $DesktopPath 'Codex.lnk') -Destination (Join-Path $backup 'Codex.lnk')
-        $launchName = 'Codex Dynamic Skin'
-      }
       $shell = New-Object -ComObject WScript.Shell
       foreach ($spec in @(
         @($launchName, 'engine/launcher/CodexDynamicSkinLauncher.exe', '', $true),

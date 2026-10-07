@@ -37,6 +37,31 @@ function Test-DynamicQuickState {
   return $true
 }
 
+function Test-DynamicQuickCommandLineToken {
+  param([string]$CommandLine,[string]$Token)
+  if(-not$CommandLine -or -not$Token){return $false}
+  $pattern='(?i)(?:^|[\s"])'+[regex]::Escape($Token)+'(?=$|[\s"])'
+  return [regex]::IsMatch($CommandLine,$pattern)
+}
+
+function Test-DynamicQuickCodexState {
+  param([object]$State,[object[]]$Processes)
+  if($null-eq$State -or -not$State.codexExe -or -not$State.profilePath){return $false}
+  $ids=@{}
+  foreach($process in @($Processes)){
+    $processId=[int]$process.ProcessId
+    if($processId-gt0){$ids[$processId]=$true}
+  }
+  $roots=@($Processes|Where-Object{-not$ids.ContainsKey([int]$_.ParentProcessId)})
+  $managed=@($roots|Where-Object{
+    (Test-DynamicPathEqual "$($_.ExecutablePath)" "$($State.codexExe)") -and
+    (Test-DynamicQuickCommandLineToken "$($_.CommandLine)" '--remote-debugging-address=127.0.0.1') -and
+    (Test-DynamicQuickCommandLineToken "$($_.CommandLine)" "--remote-debugging-port=$($State.port)") -and
+    (Test-DynamicQuickCommandLineToken "$($_.CommandLine)" "--user-data-dir=$($State.profilePath)")
+  })
+  return $roots.Count-eq1 -and $managed.Count-eq1
+}
+
 function Start-DynamicFullLauncher {
   param([string]$ScriptRoot)
   $script=Join-Path $ScriptRoot 'start-dream-skin.ps1'
@@ -78,6 +103,11 @@ function Invoke-DynamicQuickLauncher {
     $pids=@([int]$state.injectorPid);if($state.videoPid){$pids += [int]$state.videoPid}
     $processes=@();foreach($processId in $pids){$p=Get-Process -Id $processId -ErrorAction SilentlyContinue;if($p){$processes += [pscustomobject]@{Id=$p.Id;Path=$p.Path;StartedAt=$p.StartTime.ToUniversalTime().ToString('o')}}}
     if(-not(Test-DynamicQuickState -State $state -StateRoot $stateRoot -Processes $processes -BrowserId $match.Groups['id'].Value)){throw 'Managed services need recovery'}
+    $codexProcesses=@(Get-CimInstance Win32_Process -Filter "Name = 'ChatGPT.exe'" -ErrorAction Stop|Where-Object{
+      (Test-DynamicPathEqual "$($_.ExecutablePath)" "$($state.codexExe)") -or
+      "$($_.ExecutablePath)" -match '(?i)\\WindowsApps\\OpenAI\.Codex_'
+    })
+    if(-not(Test-DynamicQuickCodexState -State $state -Processes $codexProcesses)){throw 'Another Codex profile is active'}
     Initialize-DynamicQuickPackageLauncher
     $aumid="$($state.codexPackageFamilyName)!App"
     $args="--remote-debugging-address=127.0.0.1 --remote-debugging-port=$port --user-data-dir=`"$($state.profilePath)`""

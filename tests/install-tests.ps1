@@ -1,4 +1,4 @@
-﻿param([string]$NodeRuntimePath = "$env:LOCALAPPDATA\CodexDreamSkin\engine\runtime\node\node.exe")
+param([string]$NodeRuntimePath = "$env:LOCALAPPDATA\CodexDreamSkin\engine\runtime\node\node.exe")
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 if (-not (Test-Path "$repo/scripts/install.ps1")) { throw 'Installer is missing.' }
@@ -30,10 +30,10 @@ try {
   Set-Content "$root/engine/old.txt" 'recover me'
   Set-Content "$root/private.txt" 'preserve me'
   Install-DynamicSkin -SourceRoot $repo -InstallRoot $root -DesktopPath $desktop -NodeRuntimePath $NodeRuntimePath
-  if ((Get-Content "$desktop/Codex.lnk" -Raw).Trim() -ne 'original shortcut') { throw 'Existing Codex shortcut overwritten.' }
   $shell = New-Object -ComObject WScript.Shell
-  $link = $shell.CreateShortcut("$desktop/Codex Dynamic Skin.lnk")
+  $link = $shell.CreateShortcut("$desktop/Codex.lnk")
   if ($link.TargetPath -notlike '*engine\launcher\CodexDynamicSkinLauncher.exe' -or $link.Arguments) { throw 'Wrong launch shortcut.' }
+  if (Test-Path "$desktop/Codex Dynamic Skin.lnk") { throw 'Installer left a second normal Codex entry on the desktop.' }
   if (-not (Test-Path -LiteralPath $link.TargetPath -PathType Leaf)) { throw 'Compiled fast launcher is missing.' }
   if ($link.IconLocation -notlike '*icons\chatgpt-app-light.ico*' -or -not (Test-Path "$root/icons/chatgpt-app-light.ico")) { throw 'Installed shortcut did not receive the locally registered official icon.' }
   if (-not (Get-ChildItem "$root/backups" -Recurse -Filter Codex.lnk)) { throw 'Existing Codex shortcut was not backed up.' }
