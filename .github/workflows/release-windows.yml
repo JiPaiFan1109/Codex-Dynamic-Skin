@@ -1,0 +1,31 @@
+name: Build and upload Windows release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and upload
+        required: true
+        default: v0.1.3
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Build verified Windows package
+        shell: powershell
+        run: .\scripts\build-release.ps1 -OutputDirectory .\dist
+
+      - name: Upload release assets
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" .\dist\*.zip .\dist\*.sha256 --clobber
