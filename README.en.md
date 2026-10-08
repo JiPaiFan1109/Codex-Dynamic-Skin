@@ -9,11 +9,11 @@
 
 Image and video backgrounds for the Windows Codex desktop app, with readable chat surfaces. A community project based on [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18. **Not an official OpenAI product or affiliated with OpenAI.**
 
-![Earth video background in a real Codex window](docs/media/earth-demo.gif)
+![High-resolution Earth video background in a real Codex window](docs/media/earth-demo.webp)
 
-[Watch the high-quality MP4 demo (about 8 seconds)](docs/media/earth-demo.mp4) · [Get the Earth background](docs/earth-background.md)
+[Watch the full high-quality MP4 demo (about 18 seconds)](docs/media/earth-demo.mp4) · [Get the Earth background](docs/earth-background.md)
 
-Recorded from a real Codex window, cropped to the app area, with the sidebar account temporarily anonymized. The inline GIF runs for about 16 seconds, is about 7.7 MB, and has a smoothed loop transition. The original Earth video is not included in the repository or installer.
+Recorded from a real Codex window after checking that no sensitive personal information is visible. The inline preview is a 1128 × 720 animated WebP loop of about 10 seconds; the full MP4 runs for about 18 seconds. The original Earth wallpaper video is not included in the repository or installer.
 
 <details>
 <summary>Static preview</summary>
@@ -28,7 +28,7 @@ Every public version updates this table, the full [changelog](CHANGELOG.md), and
 
 | Date | Version | Main changes |
 | --- | --- | --- |
-| 2026-10-07 | 0.1.3 | Make Dream Skin the single everyday entry, prevent ordinary and skinned profiles from coexisting, and migrate legacy dynamic themes |
+| 2026-10-08 | 0.1.3 | Make Dream Skin the single everyday entry, prevent ordinary and skinned profiles from coexisting, and migrate legacy dynamic themes |
 | 2026-10-07 | 0.1.2 | Fix startup rollback after app updates and recycled PIDs; add a lightweight window activation path averaging about 0.7 seconds locally |
 | 2026-10-02 | [0.1.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.1) | Make automatic verification silent; support the Codex 26.928 home structure |
 | 2026-10-01 | [0.1.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.0) | Initial public release with image/video backgrounds, recovery, and packaging |

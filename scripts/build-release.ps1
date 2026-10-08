@@ -26,7 +26,7 @@ try {
   if (-not (Test-Path -LiteralPath $nodeLicense -PathType Leaf)) { throw 'Node LICENSE missing.' }
   # Exact file allowlist: scratch data, arbitrary images, icons and future local files never enter a release.
   $files = @(
-    'VERSION','LICENSE','THIRD_PARTY_NOTICES.md','README.md','README.en.md','CHANGELOG.md','SECURITY.md','docs/earth-background.md','Install.cmd',
+    'VERSION','LICENSE','THIRD_PARTY_NOTICES.md','README.md','README.en.md','CHANGELOG.md','SECURITY.md','docs/earth-background.md','docs/images/wechat-donation.jpg','Install.cmd',
     'scripts/install.ps1','scripts/manage-background.ps1','scripts/media.ps1','scripts/node-runtime.json',
     'engine/VERSION',
     'engine/assets/demo-background.png','engine/assets/theme.json','engine/assets/theme-package-validator.mjs',

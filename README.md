@@ -9,11 +9,11 @@
 
 为 Windows 版 Codex 桌面客户端添加图片或动态视频背景，保留聊天区的可读性。基于 [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18 开发的社区项目，**非 OpenAI 官方产品，与 OpenAI 无隶属关系**。
 
-![真实 Codex 窗口中的地球动态背景演示](docs/media/earth-demo.gif)
+![真实 Codex 窗口中的地球动态背景高清演示](docs/media/earth-demo.webp)
 
-[观看高清 MP4 演示（约 8 秒）](docs/media/earth-demo.mp4) · [获取演示中的地球背景](docs/earth-background.md)
+[观看完整高清 MP4 演示（约 18 秒）](docs/media/earth-demo.mp4) · [获取演示中的地球背景](docs/earth-background.md)
 
-演示录自真实 Codex 窗口，仅展示应用区域；录制时临时匿名化了侧栏账号信息。内嵌 GIF 约 16 秒、7.7 MB，并对循环首尾做了平滑过渡。演示中的地球原视频不随项目或安装包分发。
+演示录自真实 Codex 窗口，仅展示应用区域；录制时已检查并排除敏感个人信息。首页内嵌动画为 1128 × 720、约 10 秒的 WebP 循环，完整 MP4 为约 18 秒。演示中的地球原视频不随项目或安装包分发。
 
 <details>
 <summary>查看静态预览</summary>
@@ -28,7 +28,7 @@
 
 | 日期 | 版本 | 主要变化 |
 | --- | --- | --- |
-| 2026-10-07 | 0.1.3 | Dream Skin 成为唯一日常入口；阻止普通与动态 profile 并存；自动迁移旧动态主题 |
+| 2026-10-08 | 0.1.3 | Dream Skin 成为唯一日常入口；阻止普通与动态 profile 并存；自动迁移旧动态主题 |
 | 2026-10-07 | 0.1.2 | 修复升级后启动回滚与旧 PID 复用；新增约 0.7 秒的轻量窗口唤回入口 |
 | 2026-10-02 | [0.1.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.1) | 自动验证改为静默；兼容 Codex 26.928 首页结构 |
 | 2026-10-01 | [0.1.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.0) | 首次公开发布：静态图片、动态视频、恢复与安装流程 |
@@ -71,3 +71,7 @@ Release ZIP 自带固定版本 **Node.js 24.19.0 x64** 及其许可证，无需�
 项目代码按 [MIT License](LICENSE) 提供，保留上游 `Copyright (c) 2026 Codex Dream Skin Studio contributors` 声明。上游来源、Node.js 许可证和演示素材的使用边界见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。MIT 不覆盖第三方壁纸、OpenAI 品牌或本机提取的图标。
 
 安全机制与问题报告说明见 [SECURITY.md](SECURITY.md)。
+
+## 打赏作者一杯蜜雪冰城喝
+
+![微信支付收款码](docs/images/wechat-donation.jpg)
