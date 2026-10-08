@@ -74,4 +74,6 @@ Release ZIP 自带固定版本 **Node.js 24.19.0 x64** 及其许可证，无需�
 
 ## 打赏作者一杯蜜雪冰城喝
 
-![微信支付收款码](docs/images/wechat-donation.jpg)
+<a href="docs/images/wechat-donation.jpg">
+  <img src="docs/images/wechat-donation.jpg" alt="微信支付收款码" width="316">
+</a>
