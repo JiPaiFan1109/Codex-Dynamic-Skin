@@ -7,7 +7,7 @@
 ![Windows x64](https://img.shields.io/badge/Windows-x64-0078D4)
 [![License](https://img.shields.io/github/license/JiPaiFan1109/Codex-Dynamic-Skin)](LICENSE)
 
-为 Windows 版 Codex 桌面客户端添加图片或动态视频背景，保留聊天区的可读性。基于 [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18 开发的社区项目，**非 OpenAI 官方产品，与 OpenAI 无隶属关系**。
+为 Windows 版 Codex 桌面客户端添加图片或动态视频背景，保留聊天区的可读性。**非 OpenAI 官方产品，与 OpenAI 无隶属关系**。
 
 ![真实 Codex 窗口中的地球动态背景高清演示](docs/media/earth-demo.webp)
 
