@@ -32,9 +32,9 @@ function Invoke-DynamicUpgradePreparation {
     if(-not $nodes.Count){return $null}
     $blocked='仍有无法验证身份的进程占用安装运行环境，请退出相关程序或重启后再安装。未修改安装文件。'
     $statePath=Join-Path $root 'state.json'
-    if(-not(Test-Path -LiteralPath $statePath -PathType Leaf) -or (Get-Item -LiteralPath $statePath).Length -gt 64KB){return $blocked}
+    if(-not(Test-Path -LiteralPath $statePath -PathType Leaf) -or (Get-Item -LiteralPath $statePath).Length -gt 64KB){return ($blocked+' 后台身份记录不存在或超出限制。')}
     $state=[IO.File]::ReadAllText($statePath)|ConvertFrom-Json -ErrorAction Stop
-    if([string]$state.nodePath -ine $runtime){return $blocked}
+    if([string]$state.nodePath -ine $runtime){return ($blocked+' 运行环境记录不一致。')}
     $records=@(
       @{Id=[int]$state.injectorPid;Started=$state.injectorStartedAt;Script=(Join-Path $root 'engine/scripts/injector.mjs');SavedScript=[string]$state.injectorPath;Flags=@('--watch')},
       @{Id=[int]$state.videoPid;Started=$state.videoStartedAt;Script=(Join-Path $root 'engine/scripts/video-server.mjs');SavedScript=[string]$state.videoScript;Flags=@('--config','--ready',(Join-Path $root 'video-theme.json'),(Join-Path $root 'video-ready.json'))}
@@ -43,27 +43,27 @@ function Invoke-DynamicUpgradePreparation {
     # passed as data to node -e is not an injector; require the script argv position.
     foreach($process in $nodes){
       $matches=@($records|Where-Object {$_.Id -gt 0 -and $_.Id -eq [int]$process.ProcessId})
-      if($matches.Count -ne 1){return $blocked}
+      if($matches.Count -ne 1){return ($blocked+' 存在未记录的运行进程。')}
       $record=$matches[0]
-      if(-not $record.Started -or $record.SavedScript -ine $record.Script){return $blocked}
+      if(-not $record.Started -or $record.SavedScript -ine $record.Script){return ($blocked+' 脚本身份记录不完整。')}
       $exePattern='(?:"'+[regex]::Escape($runtime)+'"|'+[regex]::Escape($runtime)+')'
       $scriptPattern='(?:"'+[regex]::Escape($record.Script)+'"|'+[regex]::Escape($record.Script)+')'
-      if([string]$process.CommandLine -notmatch ('(?i)^\s*'+$exePattern+'\s+'+$scriptPattern+'(?=\s|$)')){return $blocked}
+      if([string]$process.CommandLine -notmatch ('(?i)^\s*'+$exePattern+'\s+'+$scriptPattern+'(?=\s|$)')){return ($blocked+' 后台脚本启动位置不一致。')}
       foreach($flag in $record.Flags){
-        if([string]$process.CommandLine -notmatch ('(?i)(?:^|[\s"])'+[regex]::Escape($flag)+'(?=$|[\s"])')){return $blocked}
+        if([string]$process.CommandLine -notmatch ('(?i)(?:^|[\s"])'+[regex]::Escape($flag)+'(?=$|[\s"])')){return ($blocked+' 后台参数不完整。')}
       }
       $handle=Get-Process -Id ([int]$process.ProcessId) -ErrorAction SilentlyContinue
       if(-not $handle){continue}
       $handles.Add($handle)
       $started=if($record.Started -is [datetime]){$record.Started.ToUniversalTime()}else{[datetime]::Parse([string]$record.Started,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()}
-      if($handle.StartTime.ToUniversalTime().Ticks -ne $started.Ticks -or $handle.Path -ine $runtime){return $blocked}
+      if($handle.StartTime.ToUniversalTime().Ticks -ne $started.Ticks -or $handle.Path -ine $runtime){return ($blocked+' 进程启动时间或运行文件发生变化。')}
     }
     foreach($handle in $handles){
       Stop-Process -InputObject $handle -Force -ErrorAction Stop
       if(-not $handle.WaitForExit(10000)){return '换肤后台未能退出，本次安装未替换文件。请退出相关程序后重试。'}
     }
     return Get-DynamicUpgradeBlockReason $root
-  }catch{return '无法安全检查或停止换肤后台，本次安装未替换文件。请稍后重试。'}
+  }catch{return ('无法安全检查或停止换肤后台，本次安装未替换文件。具体原因：'+$_.Exception.Message)}
   finally{foreach($handle in $handles){$handle.Dispose()}}
 }
 

@@ -79,7 +79,13 @@ try{
     $record=[ordered]@{nodePath=$runtime;injectorPid=$node.Id;injectorStartedAt=$node.StartTime.ToUniversalTime().ToString('o');injectorPath=$helperPath}
     $record|ConvertTo-Json|Set-Content $helperState -Encoding UTF8
     $stateHash=(Get-FileHash $helperState).Hash
-    Run-Setup $setup @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART')
+    $helperLog=Join-Path $root 'helper-upgrade.log'
+    try {Run-Setup $setup @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART',('/LOG="'+$helperLog+'"'))} catch {
+      if(Test-Path $helperLog){Get-Content $helperLog -Tail 30|Write-Host}
+      $record|ConvertTo-Json -Compress|Write-Host
+      Get-CimInstance Win32_Process -Filter ('ProcessId='+$node.Id)|Select-Object ProcessId,ExecutablePath,CommandLine|ConvertTo-Json -Compress|Write-Host
+      throw
+    }
     $node.Refresh()
     if(-not $node.HasExited){throw 'Setup left the recorded helper running'}
     if((Get-FileHash $helperState).Hash -ne $stateHash -or (Get-Content $kept) -ne 'keep my wallpaper'){throw 'Helper cleanup changed user data'}
