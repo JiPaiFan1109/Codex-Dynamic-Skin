@@ -4,10 +4,6 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readImageMetadata } from "./image-metadata.mjs";
-import {
-  normalizeThemeColor,
-  normalizeThemeText,
-} from "../assets/theme-package-validator.mjs";
 import { decodeAndValidateSafeCss } from "../assets/safe-css-validator.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -40,9 +36,7 @@ const stableTestidLiteral = (testid) => {
   return JSON.stringify(`[data-testid="${testid}"]`);
 };
 const SKIN_VERSION = "1.5.18";
-// .github/workflows/ci.yml's version-consistency check greps this file for a
-// literal `const SKIN_VERSION = "...";` line, so the export stays a separate
-// statement rather than an inline `export const`.
+// Retain the inherited engine protocol version for saved-session compatibility.
 export { SKIN_VERSION };
 const MAX_ART_BYTES = 10 * 1024 * 1024;
 const MAX_SAFE_CSS_BYTES = 256 * 1024;
@@ -54,9 +48,7 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
 const BROWSER_ID_PATTERN = /^[A-Za-z0-9._-]{1,200}$/;
 const OPERATION_UI_HOST_ID = "chatgpt-dream-skin-operation";
 const OPERATION_UI_REGISTRY_KEY = "__CHATGPT_DREAM_SKIN_OPERATION_UI__";
-const OPERATION_KINDS = new Set(["apply", "pause", "switch"]);
-const OPERATION_UI_STATES = new Set(["success", "error", "cancelled"]);
-// Shared with macOS: in-renderer progress for pause/apply so both platforms feel the same.
+// Progress for explicit one-shot apply/remove actions; automatic retries stay silent.
 const OPERATION_UI_CSS = `
   :host {
     all: initial;
@@ -156,10 +148,6 @@ export function parseArgs(argv) {
     browserId: null,
     themeDir: path.join(root, "assets"),
     pauseFile: null,
-    operationKind: null,
-    operationUiState: null,
-    operationMessage: null,
-    operationToken: null,
     silentUi: false,
     videoState: null,
   };
@@ -170,17 +158,11 @@ export function parseArgs(argv) {
     else if (arg === "--watch") options.mode = "watch";
     else if (arg === "--verify") options.mode = "verify";
     else if (arg === "--remove") options.mode = "remove";
-    else if (arg === "--begin-operation") options.mode = "begin-operation";
-    else if (arg === "--finish-operation") options.mode = "finish-operation";
     else if (arg === "--timeout-ms") options.timeoutMs = Number(argv[++i]);
     else if (arg === "--browser-id") options.browserId = argv[++i];
     else if (arg === "--theme-dir") options.themeDir = path.resolve(argv[++i]);
     else if (arg === "--pause-file") options.pauseFile = path.resolve(argv[++i]);
     else if (arg === "--screenshot") options.screenshot = path.resolve(argv[++i]);
-    else if (arg === "--operation-kind") options.operationKind = argv[++i];
-    else if (arg === "--operation-ui-state") options.operationUiState = argv[++i];
-    else if (arg === "--operation-message") options.operationMessage = argv[++i];
-    else if (arg === "--operation-token") options.operationToken = argv[++i];
     else if (arg === "--silent-ui") options.silentUi = true;
     else if (arg === "--video-state") options.videoState = path.resolve(argv[++i]);
     else if (arg === "--reload") options.reload = true;
@@ -196,26 +178,6 @@ export function parseArgs(argv) {
   }
   if (options.browserId !== null && !BROWSER_ID_PATTERN.test(options.browserId)) {
     throw new Error(`Invalid browser ID: ${options.browserId}`);
-  }
-  if (options.operationToken !== null && !/^\d{1,12}:\d{13}:\d{1,8}$/.test(options.operationToken)) {
-    throw new Error("Invalid operation token");
-  }
-  if (options.mode === "begin-operation") {
-    if (!OPERATION_KINDS.has(options.operationKind)) {
-      throw new Error("Begin operation requires --operation-kind apply, pause, or switch");
-    }
-    if (!options.browserId) throw new Error("--browser-id is required in begin-operation mode");
-  }
-  if (options.mode === "finish-operation") {
-    if (!OPERATION_UI_STATES.has(options.operationUiState)) {
-      throw new Error("Finish operation requires --operation-ui-state success, error, or cancelled");
-    }
-    if (!options.operationToken) throw new Error("Finish operation requires --operation-token");
-    if (typeof options.operationMessage !== "string" || options.operationMessage.length > 240
-      || /[\r\n]/.test(options.operationMessage)) {
-      throw new Error("Finish operation requires a single-line --operation-message up to 240 characters");
-    }
-    if (!options.browserId) throw new Error("--browser-id is required in finish-operation mode");
   }
   if (["watch", "once", "verify", "remove"].includes(options.mode) && !options.browserId) {
     throw new Error(`--browser-id is required in ${options.mode} mode`);
@@ -455,18 +417,7 @@ async function connectBrowserIdentityAnchor(port, expectedBrowserId) {
 
 const THEME_CHOICES = {
   appearance: new Set(["auto", "light", "dark"]),
-  safeArea: new Set(["auto", "left", "right", "center", "none"]),
-  taskMode: new Set(["auto", "ambient", "banner", "full", "off"]),
 };
-
-function normalizedUnit(value, name) {
-  if (value === null || value === undefined || value === "") return null;
-  const number = Number(value);
-  if (!Number.isFinite(number) || number < 0 || number > 1) {
-    throw new Error(`${name} must be null or a number between 0 and 1`);
-  }
-  return number;
-}
 
 function normalizedChoice(value, name, choices, fallback) {
   if (value === null || value === undefined || value === "") return fallback;
@@ -476,10 +427,10 @@ function normalizedChoice(value, name, choices, fallback) {
 
 function normalizedText(value, name, fallback, maxLength = 120) {
   if (value === null || value === undefined || value === "") return fallback;
-  if (typeof value !== "string" || value.length > maxLength || /[\u0000-\u001f]/.test(value)) {
+  if (typeof value !== "string" || Array.from(value).length > maxLength || /[\u0000-\u001f]/.test(value)) {
     throw new Error(`${name} must be a short single-line string`);
   }
-  return value;
+  return value.trim() || fallback;
 }
 
 function sameFileStat(left, right) {
@@ -552,46 +503,12 @@ export async function loadTheme(themeDir) {
   if (!isContainedRelativePath(realRelativeImage)) {
     throw new Error("Theme image cannot escape through a link or junction");
   }
-  const art = raw.art && typeof raw.art === "object" && !Array.isArray(raw.art) ? raw.art : {};
-  const rawColors = raw.colors && typeof raw.colors === "object" && !Array.isArray(raw.colors)
-    ? raw.colors : null;
-  const colorKeys = [
-    "background", "panel", "panelAlt", "accent", "accentAlt", "secondary",
-    "highlight", "text", "muted", "line",
-  ];
-  const colors = {
-    background: normalizeThemeColor(rawColors?.background, "#071116"),
-    panel: normalizeThemeColor(rawColors?.panel, "#0b1a20"),
-    panelAlt: normalizeThemeColor(rawColors?.panelAlt, "#10272c"),
-    accent: normalizeThemeColor(rawColors?.accent, "#7cff46"),
-    accentAlt: normalizeThemeColor(rawColors?.accentAlt, "#b8ff3d"),
-    secondary: normalizeThemeColor(rawColors?.secondary, "#36d7e8"),
-    highlight: normalizeThemeColor(rawColors?.highlight, "#642a8c"),
-    text: normalizeThemeColor(rawColors?.text, "#e9fff1"),
-    muted: normalizeThemeColor(rawColors?.muted, "#9ebdb3"),
-    line: normalizeThemeColor(rawColors?.line, "rgba(124, 255, 70, .28)"),
-  };
   const theme = {
     schemaVersion: 1,
-    id: normalizeThemeText(raw.id, "custom", 80, "id", themePath),
-    name: normalizeThemeText(raw.name, "Codex Dream Skin", 80, "name", themePath),
-    brandSubtitle: normalizeThemeText(raw.brandSubtitle, "CODEX DREAM SKIN", 120, "brandSubtitle", themePath),
-    tagline: normalizeThemeText(raw.tagline, "Make something wonderful.", 120, "tagline", themePath),
-    projectPrefix: normalizeThemeText(raw.projectPrefix, "选择项目 · ", 120, "projectPrefix", themePath),
-    projectLabel: normalizeThemeText(raw.projectLabel, "◉  选择项目", 120, "projectLabel", themePath),
-    statusText: normalizeThemeText(raw.statusText, "DREAM SKIN ONLINE", 120, "statusText", themePath),
-    quote: normalizeThemeText(raw.quote, "MAKE SOMETHING WONDERFUL", 120, "quote", themePath),
+    id: normalizedText(raw.id, "id", "custom", 80),
+    name: normalizedText(raw.name, "name", "Codex wallpaper", 80),
     image,
     appearance: normalizedChoice(raw.appearance, "appearance", THEME_CHOICES.appearance, "auto"),
-    art: {
-      focusX: normalizedUnit(art.focusX, "art.focusX"),
-      focusY: normalizedUnit(art.focusY, "art.focusY"),
-      safeArea: normalizedChoice(art.safeArea, "art.safeArea", THEME_CHOICES.safeArea, "auto"),
-      taskMode: normalizedChoice(art.taskMode, "art.taskMode", THEME_CHOICES.taskMode, "auto"),
-    },
-    colorMode: rawColors ? "explicit" : "auto",
-    explicitColorKeys: rawColors ? colorKeys.filter((key) => Object.hasOwn(rawColors, key)) : [],
-    colors,
   };
   const [themeStat, imageStat, safeCss] = await Promise.all([
     fs.stat(themePath),
@@ -697,10 +614,7 @@ export async function loadPayload(
   themeDir = path.join(root, "assets"), candidateTheme = null, videoConfig = null,
 ) {
   const loadedTheme = candidateTheme ?? await loadTheme(themeDir);
-  const [css, template] = await Promise.all([
-    fs.readFile(path.join(root, "assets", "dream-skin.css"), "utf8"),
-    fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8"),
-  ]);
+  const template = await fs.readFile(path.join(root, "assets", "renderer-inject.js"), "utf8");
   const combinedCss = await fs.readFile(path.join(root, "assets", "earth-background.css"), "utf8");
   const extension = path.extname(loadedTheme.imagePath).toLowerCase();
   const mime = extension === ".jpg" || extension === ".jpeg" ? "image/jpeg"
@@ -1013,12 +927,6 @@ export function shouldShowOperationUi(options) {
   return !options.silentUi && (options.mode === "once" || options.mode === "remove");
 }
 
-function operationKindMessage(kind) {
-  if (kind === "pause") return "正在暂停皮肤…";
-  if (kind === "switch") return "正在切换主题…";
-  return "正在应用皮肤…";
-}
-
 function operationUiExpression(action, token, state = "loading", message = "") {
   const config = { action, token, state, message };
   return `(() => {
@@ -1167,14 +1075,6 @@ async function bestEffortOperationUi(session, action, token, state, message, tim
     console.error(`[dream-skin] client status unavailable: ${error.message}`);
     return false;
   }
-}
-
-async function presentOperationUi(session, token, state, message, timeoutMs = 10000) {
-  const updated = await bestEffortOperationUi(
-    session, "update", token, state, message, timeoutMs,
-  );
-  if (updated) return true;
-  return bestEffortOperationUi(session, "show", token, state, message, timeoutMs);
 }
 
 async function removeFromSession(session) {
@@ -1479,55 +1379,15 @@ async function capture(session, outputPath) {
   await fs.writeFile(outputPath, Buffer.from(result.data, "base64"));
 }
 
-async function runBeginOperation(options) {
-  const connected = await connectCodexTargets(options.port, options.timeoutMs, options.browserId);
-  const operationToken = options.operationToken ?? nextOperationToken();
-  let shown = false;
-  try {
-    const results = await Promise.all(connected.map(({ session }) => presentOperationUi(
-      session,
-      operationToken,
-      "loading",
-      operationKindMessage(options.operationKind),
-      Math.max(250, Math.floor(options.timeoutMs / 2)),
-    )));
-    shown = results.some(Boolean);
-  } finally {
-    for (const { session } of connected) session.close();
-  }
-  if (!shown) throw new Error("Could not show operation progress in the verified Codex renderer");
-  process.stdout.write(`${operationToken}\n`);
-}
-
-async function runFinishOperation(options) {
-  const connected = await connectCodexTargets(options.port, options.timeoutMs, options.browserId);
-  let shown = false;
-  try {
-    const results = await Promise.all(connected.map(({ session }) => presentOperationUi(
-      session,
-      options.operationToken,
-      options.operationUiState,
-      options.operationMessage,
-      Math.max(250, Math.floor(options.timeoutMs / 2)),
-    )));
-    shown = results.some(Boolean);
-  } finally {
-    for (const { session } of connected) session.close();
-  }
-  if (!shown) throw new Error("Could not show the completed operation state in the verified Codex renderer");
-}
-
 async function runOneShot(options) {
   const connected = await connectCodexTargets(options.port, options.timeoutMs, options.browserId);
   const operationToken = shouldShowOperationUi(options)
-    ? options.operationToken ?? nextOperationToken()
+    ? nextOperationToken()
     : null;
   if (operationToken) {
     const message = options.mode === "remove" ? "正在暂停皮肤…" : "正在准备皮肤…";
-    const action = options.operationToken ? presentOperationUi : (session, token, state, text) =>
-      bestEffortOperationUi(session, "show", token, state, text);
-    await Promise.all(connected.map(({ session }) => action(
-      session, operationToken, "loading", message,
+    await Promise.all(connected.map(({ session }) => bestEffortOperationUi(
+      session, "show", operationToken, "loading", message,
     )));
   }
   let loadedPayload = null;
@@ -1957,8 +1817,6 @@ if (path.resolve(process.argv[1] || "") === path.resolve(scriptPath)) {
       artMetadata: loaded.theme.artMetadata ?? null,
       safeCssStatus: loaded.safeCssStatus,
     }));
-  } else if (options.mode === "begin-operation") await runBeginOperation(options);
-  else if (options.mode === "finish-operation") await runFinishOperation(options);
-  else if (options.mode === "watch") await runWatch(options);
+  } else if (options.mode === "watch") await runWatch(options);
   else await runOneShot(options);
 }

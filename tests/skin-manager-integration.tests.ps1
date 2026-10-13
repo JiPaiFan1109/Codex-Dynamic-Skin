@@ -1,0 +1,99 @@
+﻿param([string]$CapturePath)
+$ErrorActionPreference='Stop'
+$repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+. (Join-Path $repo 'scripts/media.ps1');Initialize-DynamicMedia -InstallRoot $repo
+. (Join-Path $repo 'scripts/wallpaper-library.ps1')
+. (Join-Path $repo 'scripts/skin-manager.ps1')
+function Assert($Condition,$Message){if(-not $Condition){throw $Message}}
+function Get-VisualImages($Visual){
+  for($i=0;$i -lt [Windows.Media.VisualTreeHelper]::GetChildrenCount($Visual);$i++){
+    $child=[Windows.Media.VisualTreeHelper]::GetChild($Visual,$i)
+    if($child -is [Windows.Controls.Image]){$child}
+    Get-VisualImages $child
+  }
+}
+$root=Join-Path ([IO.Path]::GetTempPath()) ('skin-manager-ui-'+[guid]::NewGuid().ToString('N'))
+$script:qa=@{Step=0;Error=$null;Deadline=[datetime]::UtcNow.AddSeconds(100);MediaOpened=$false;CapturePath=$CapturePath}
+$originalWindow=${function:New-DynamicSkinManagerWindow}
+try{
+  function New-DynamicSkinManagerWindow {
+    $window=& $originalWindow
+    $window.ShowActivated=$false
+    $window.Add_ContentRendered({
+      $script:SkinManager.Controls.PreviewVideo.Add_MediaOpened({$script:qa.MediaOpened=$true})
+      $qaTimer=New-Object Windows.Threading.DispatcherTimer
+      $qaTimer.Interval=[timespan]::FromMilliseconds(200)
+      $qaTimer.Add_Tick({
+        $ui=$script:SkinManager
+        try {
+          if([datetime]::UtcNow -gt $script:qa.Deadline){throw 'UI integration timed out'}
+          if($ui.Busy){return}
+          switch($script:qa.Step){
+            0 {Assert ($ui.Items.Count -eq 0) 'Fresh UI was not empty';Start-DynamicManagerWork Import (Join-Path $repo 'docs/images/earth-preview.png');$script:qa.Step=1}
+            1 {
+              Assert ($ui.Items.Count -eq 1 -and $ui.Selected.Kind -eq 'Image') 'Background import did not update cards'
+              $ui.Controls.ImageFilter.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent))
+              Start-DynamicManagerWork Import (Join-Path $repo 'docs/media/earth-demo.mp4');$script:qa.Step=2
+            }
+            2 {
+              Assert ($ui.Items.Count -eq 2 -and $ui.Selected.Kind -eq 'Video') 'Video import did not select new card'
+              Assert ($ui.Controls.SelectedFormat.Text -like '*MP4*' -and $ui.Controls.SelectedSize.Text -like '*MB*') 'Gallery file details did not update'
+              $ui.Controls.VideoFilter.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent))
+              Assert ($ui.Controls.WallpaperList.Items.Count -eq 1) 'Video filter failed through UI'
+              $ui.Controls.PlayButton.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent))
+              $script:qa.Step=3
+            }
+            3 {
+              if(-not $script:qa.MediaOpened){return}
+              Assert $ui.Playing 'Media did not enter playing state'
+              $media=$ui.Selected.MediaPath
+              Stop-DynamicManagerPreview
+              Assert ($null -eq $ui.Controls.PreviewVideo.Source -and -not $ui.Playing) 'Preview did not release source'
+              $handle=[IO.File]::Open($media,'Open','ReadWrite','None');$handle.Dispose()
+              $ui.Controls.AllFilter.RaiseEvent([Windows.RoutedEventArgs]::new([Windows.Controls.Button]::ClickEvent))
+              Start-DynamicManagerWork Rename $ui.Selected.Id '我的地球动态壁纸'
+              $script:qa.Step=4
+            }
+            4 {
+              Assert ($ui.Selected.Name -eq '我的地球动态壁纸') 'Rename did not persist through worker'
+              foreach($view in $ui.Controls.WallpaperList.ItemsSource){
+                Assert ($null -ne $view.Item.ThumbnailPath -and $null -ne $view.ThumbnailImage) ('Card thumbnail unavailable: '+$view.Name+'; file='+$view.Item.ThumbnailPath)
+              }
+              $ui.Window.UpdateLayout()
+              $cardImages=@(Get-VisualImages $ui.Controls.WallpaperList)
+              Assert ($cardImages.Count -eq 2 -and @($cardImages|Where-Object {$null -ne $_.Source}).Count -eq 2) 'Card bitmap binding did not display thumbnails'
+              if($script:qa.CapturePath){
+                $ui.Window.UpdateLayout()
+                $dpi=[Windows.Media.VisualTreeHelper]::GetDpi($ui.Window)
+                $bitmap=New-Object Windows.Media.Imaging.RenderTargetBitmap ([int]($ui.Window.ActualWidth*$dpi.DpiScaleX)),([int]($ui.Window.ActualHeight*$dpi.DpiScaleY)),($dpi.PixelsPerInchX),($dpi.PixelsPerInchY),([Windows.Media.PixelFormats]::Pbgra32)
+                $bitmap.Render($ui.Window)
+                $encoder=New-Object Windows.Media.Imaging.PngBitmapEncoder;$encoder.Frames.Add([Windows.Media.Imaging.BitmapFrame]::Create($bitmap))
+                $output=[IO.File]::Create([IO.Path]::GetFullPath($script:qa.CapturePath));try{$encoder.Save($output)}finally{$output.Dispose()}
+              }
+              $script:qa.VideoId=$ui.Selected.Id
+              Start-DynamicManagerWork Delete $ui.Selected.Id;$script:qa.Step=5
+            }
+            5 {
+              Assert ($ui.Items.Count -eq 1) 'Stopped video could not be deleted'
+              Assert (-not (Test-Path (Join-Path $root 'active-theme'))) 'PrepareOnly UI changed background'
+              $script:qa.Timer.Stop();$ui.Window.Close();$script:qa.Step=6
+            }
+          }
+        }catch{
+          $script:qa.Error=$_.Exception.ToString();$script:qa.Timer.Stop()
+          if(-not $ui.Busy){$ui.Window.Close()}
+        }
+      })
+      $script:qa.Timer=$qaTimer;$qaTimer.Start()
+    })
+    return $window
+  }
+  Show-DynamicSkinManager -InstallRoot $repo -StateRoot $root -PrepareOnly
+  if($script:qa.Error){throw $script:qa.Error}
+  Assert ($script:qa.Step -eq 6) 'UI closed before integration finished'
+  'PASS: WPF background import, selection, filtering, real H.264 playback, handle release, rename and delete'
+}finally{
+  Set-Item Function:New-DynamicSkinManagerWindow $originalWindow
+  if($script:qa.Timer){$script:qa.Timer.Stop()}
+  if(Test-Path $root){Remove-Item -LiteralPath $root -Recurse -Force}
+}

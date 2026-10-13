@@ -1,0 +1,109 @@
+﻿#ifndef SourceRoot
+  #error SourceRoot is required; use scripts/build-app.ps1
+#endif
+#ifndef AppVersion
+  #error AppVersion is required
+#endif
+
+[Setup]
+#ifdef TestInstallRoot
+AppId={{0E7720A7-D16D-4441-85E5-522908601905}
+#else
+AppId={{97EC4AF8-3971-4B65-A78E-16B0D870C41D}
+#endif
+AppName=Codex 换肤管理中心
+AppVersion={#AppVersion}
+AppPublisher=Codex Dynamic Skin contributors
+AppPublisherURL=https://github.com/JiPaiFan1109/Codex-Dynamic-Skin
+AppSupportURL=https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/issues
+#ifdef TestInstallRoot
+DefaultDirName={#TestInstallRoot}
+#else
+DefaultDirName={localappdata}\CodexDynamicSkin
+#endif
+UsePreviousAppDir=no
+DisableDirPage=yes
+DisableProgramGroupPage=yes
+PrivilegesRequired=lowest
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.17763
+SetupIconFile={#SourceRoot}\appearance\skin-manager.ico
+UninstallDisplayIcon={app}\CodexSkinManager.exe
+OutputBaseFilename=Codex-Skin-Manager-Setup
+Compression=lzma2
+SolidCompression=yes
+WizardStyle=modern
+LicenseFile={#SourceRoot}\LICENSE
+AppMutex=CodexDynamicSkinManager
+CloseApplications=no
+RestartApplications=no
+Uninstallable=yes
+
+[Languages]
+Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "创建桌面快捷方式"; Flags: checkedonce
+
+[Files]
+Source: "{#SourceRoot}\engine\*"; DestDir: "{app}\engine"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\scripts\*"; DestDir: "{app}\scripts"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourceRoot}\appearance\skin-manager.ico"; DestDir: "{app}\appearance"; Flags: ignoreversion
+Source: "{#SourceRoot}\CodexSkinManager.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceRoot}\VERSION"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceRoot}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceRoot}\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+Type: files; Name: "{app}\engine\assets\dream-skin.css"
+Type: files; Name: "{app}\engine\assets\theme-package-validator.mjs"
+Type: files; Name: "{app}\engine\assets\dream-reference.jpg"
+Type: files; Name: "{app}\engine\scripts\tray-dream-skin.ps1"
+Type: files; Name: "{app}\engine\scripts\apply-community-theme.ps1"
+Type: files; Name: "{app}\engine\scripts\check-update.ps1"
+Type: files; Name: "{app}\engine\scripts\install-dream-skin.ps1"
+Type: files; Name: "{app}\engine\scripts\verify-dream-skin.ps1"
+
+[Icons]
+#ifndef TestInstallRoot
+Name: "{userprograms}\Codex 换肤管理中心\Codex 换肤管理中心"; Filename: "{app}\CodexSkinManager.exe"
+Name: "{userprograms}\Codex 换肤管理中心\打开换肤版 Codex"; Filename: "{app}\engine\launcher\CodexDynamicSkinLauncher.exe"; IconFilename: "{app}\CodexSkinManager.exe"
+Name: "{userprograms}\Codex 换肤管理中心\卸载"; Filename: "{uninstallexe}"
+Name: "{userdesktop}\Codex 换肤管理中心"; Filename: "{app}\CodexSkinManager.exe"; Tasks: desktopicon
+#endif
+
+[Run]
+#ifndef TestInstallRoot
+Filename: "{app}\CodexSkinManager.exe"; Description: "打开 Codex 换肤管理中心"; Flags: nowait postinstall skipifsilent
+#endif
+
+[Code]
+function InitializeSetup: Boolean;
+var
+  ExpectedDirectory: String;
+begin
+  Result := True;
+#ifdef TestInstallRoot
+  ExpectedDirectory := '{#TestInstallRoot}';
+#else
+  ExpectedDirectory := ExpandConstant('{localappdata}\CodexDynamicSkin');
+#endif
+  if CompareText(ExpandConstant('{param:DIR|' + ExpectedDirectory + '}'), ExpectedDirectory) <> 0 then begin
+    if not WizardSilent then MsgBox('安装位置固定为当前用户目录，以便自动连接 Codex。', mbError, MB_OK);
+    Result := False;
+  end;
+end;
+
+function InitializeUninstall: Boolean;
+var
+  ExitCode: Integer;
+  Params: String;
+begin
+  Params := '-NoProfile -STA -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + ExpandConstant('{app}\scripts\uninstall-app.ps1') + '"';
+  if UninstallSilent then Params := Params + ' -Silent';
+  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
+  if Result then Result := ExitCode = 0;
+  if not Result and not UninstallSilent then MsgBox('外观恢复未完成，卸载已停止。请在换肤管理中心恢复原始外观后重试。壁纸库会保留在安装目录。', mbError, MB_OK);
+end;

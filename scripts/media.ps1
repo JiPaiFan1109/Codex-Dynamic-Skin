@@ -61,7 +61,7 @@ function Convert-DynamicVideo {
 }
 
 function New-DynamicPreparedMedia {
-  param([Parameter(Mandatory)][string]$SourcePath, [ValidateSet('Image','Video')][string]$Kind, [Parameter(Mandatory)][string]$StateRoot, [scriptblock]$Report)
+  param([Parameter(Mandatory)][string]$SourcePath, [ValidateSet('Image','Video')][string]$Kind, [Parameter(Mandatory)][string]$StateRoot, [scriptblock]$Report, [string]$PreparationRoot)
   $source = [IO.Path]::GetFullPath($SourcePath)
   $limit = 10MB; if ($Kind -eq 'Video') { $limit = 2GB }
   $file = Get-Item -LiteralPath $source -ErrorAction Stop
@@ -70,8 +70,15 @@ function New-DynamicPreparedMedia {
   $ext = $file.Extension.ToLowerInvariant()
   if ($Kind -eq 'Image' -and $ext -notin @('.png','.jpg','.jpeg','.webp')) { throw '图片仅支持 PNG、JPEG、WebP。' }
   if ($Kind -eq 'Video' -and $ext -notin @('.mp4','.mov','.m4v','.wmv','.avi','.mkv','.webm')) { throw '请选择 MP4、MOV、M4V、WMV、AVI、MKV 或 WebM 视频。' }
-  $directory = Join-Path ([IO.Path]::GetFullPath($StateRoot)) ('media/' + [guid]::NewGuid().ToString('N'))
+  $mediaRoot = Join-Path ([IO.Path]::GetFullPath($StateRoot)) 'media'
+  if ($PreparationRoot) {
+    $mediaRoot = [IO.Path]::GetFullPath($PreparationRoot)
+    $allowedRoot = [IO.Path]::GetFullPath($StateRoot).TrimEnd('\') + '\'
+    if (-not $mediaRoot.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) { throw '媒体暂存目录必须位于状态目录内。' }
+  }
+  $directory = Join-Path $mediaRoot ([guid]::NewGuid().ToString('N'))
   Ensure-DreamSkinManagedDirectory -Path $directory -Root $StateRoot
+  try {
   # One locked handle and a bounded buffer prevent growth or replacement during copy.
   $snapshot = Join-Path $directory ('source' + $ext)
   $inputStream = [IO.File]::Open($source, 'Open', 'Read', 'Read')
@@ -92,6 +99,12 @@ function New-DynamicPreparedMedia {
   if ($length -le 0 -or $length -gt $limit) { throw '准备后的媒体超出大小限制（视频最大 128 MiB）。' }
   if ($Kind -eq 'Video') { Remove-Item -LiteralPath $snapshot -Force }
   return [pscustomobject]@{ Kind=$Kind; Path=$ready; Preview=$preview; Size=$length; Sha256=(Get-FileHash -LiteralPath $ready -Algorithm SHA256).Hash.ToLowerInvariant() }
+  } catch {
+    $failure = $_
+    Assert-DreamSkinNoReparseComponents -Path $directory
+    if (Test-Path -LiteralPath $directory) { Remove-Item -LiteralPath $directory -Recurse -Force }
+    throw $failure
+  }
 }
 
 function Set-DynamicBackground {
@@ -161,10 +174,16 @@ function Invoke-DynamicEngine {
   $name = 'start-dream-skin.ps1'; if ($Restore) { $name = 'restore-dream-skin.ps1' }
   $arguments = @('-NoProfile','-ExecutionPolicy','RemoteSigned','-File',(ConvertTo-DreamSkinProcessArgument (Join-Path $script:DynamicInstallRoot ('engine/scripts/' + $name))))
   $token = [guid]::NewGuid().ToString('N')
-  if (-not $Restore) { $arguments += @('-PromptRestart', '-ResultToken', $token) }
+  $arguments += @('-PromptRestart', '-ResultToken', $token)
   $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WindowStyle Hidden -PassThru
   while (-not $process.HasExited) { if ([Environment]::UserInteractive -and ('System.Windows.Forms.Application' -as [type])) { [Windows.Forms.Application]::DoEvents() }; Start-Sleep -Milliseconds 100 }
   $process.WaitForExit(); $process.Refresh()
   if ($process.ExitCode -ne 0) { throw "应用操作失败（退出码 $($process.ExitCode)）。详见状态目录日志。" }
-  if (-not $Restore) { $result = Read-DreamSkinStartResult -StateRoot $StateRoot -Token $token; if ($result.outcome -ne 'success') { throw ('应用失败：' + $result.category) } }
+  $result = Read-DreamSkinStartResult -StateRoot $StateRoot -Token $token
+  if ($Restore -and $result.outcome -eq 'failure' -and $result.category -eq 'cancelled') { return $false }
+  if ($result.outcome -ne 'success') {
+    if ($Restore) { throw '恢复未完成，已保留壁纸引用。' }
+    throw ('应用失败：' + $result.category)
+  }
+  if ($Restore) { return $true }
 }

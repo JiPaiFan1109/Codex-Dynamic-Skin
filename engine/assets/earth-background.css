@@ -1,4 +1,4 @@
-/* Local Earth background: keep native layout, fonts, controls and interaction. */
+/* Local wallpaper background: keep native layout, fonts, controls and interaction. */
 html[data-dream-skin="active"] body {
   position: relative;
   isolation: isolate;

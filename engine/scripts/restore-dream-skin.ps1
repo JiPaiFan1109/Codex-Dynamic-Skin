@@ -1,12 +1,12 @@
 ﻿[CmdletBinding()]
 param(
   [int]$Port = 9345,
-  [switch]$Uninstall,
   [switch]$RestoreBaseTheme,
   [switch]$RecoverConfigBackup,
   [switch]$PromptRestart,
   [switch]$ForceRestart,
-  [switch]$NoRelaunch
+  [switch]$NoRelaunch,
+  [ValidatePattern('^[a-f0-9]{32}$')][string]$ResultToken
 )
 
 $ErrorActionPreference = 'Stop'
@@ -87,6 +87,9 @@ try {
     $forceAuthorized = Confirm-DreamSkinRestart -Message $restartMessage
     if (-not $forceAuthorized) {
       Write-Host (Get-DreamSkinText -Key 'RestoreCancelled' -Language $language)
+      if ($ResultToken) {
+        Write-DreamSkinStartResult -StateRoot $StateRoot -Token $ResultToken -Outcome failure -Category cancelled -AppearanceRecovery retained
+      }
       exit 0
     }
   }
@@ -104,7 +107,6 @@ try {
 
   $restoreError = $null
   try {
-    Stop-DreamSkinTrayProcess
     if ($shouldCloseCodex) {
       Stop-DreamSkinCodex -Codex $codex -AllowForce:$forceAuthorized
       if ($portOwnedByCodex -and -not (Wait-DreamSkinPortAvailable -Port $Port -TimeoutSeconds 5)) {
@@ -136,17 +138,7 @@ try {
 
     Remove-Item -LiteralPath $StatePath -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath (Join-Path $StateRoot 'paused') -Force -ErrorAction SilentlyContinue
-    if ($Uninstall) {
-      $desktop = [Environment]::GetFolderPath('Desktop')
-      $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs'
-      @(
-        (Join-Path $desktop 'Codex Dream Skin.lnk'),
-        (Join-Path $desktop 'Codex Dream Skin - Restore.lnk'),
-        (Join-Path $desktop 'Codex Dream Skin - Tray.lnk'),
-        (Join-Path $startMenu 'Codex Dream Skin.lnk'),
-        (Join-Path $startMenu 'Codex Dream Skin - Tray.lnk')
-      ) | ForEach-Object { Remove-Item -LiteralPath $_ -Force -ErrorAction SilentlyContinue }
-    }
+
 
     if ($shouldCloseCodex -and -not $NoRelaunch) {
       if ($null -eq $relaunchCodex -or -not (Test-Path -LiteralPath $relaunchCodex.Executable)) {
@@ -166,6 +158,9 @@ try {
   }
 
   Write-Host 'Dream Skin restore actions completed; any saved CDP session was closed.'
+  if ($ResultToken) {
+    Write-DreamSkinStartResult -StateRoot $StateRoot -Token $ResultToken -Outcome success -Category none -AppearanceRecovery restored
+  }
 } finally {
   Exit-DreamSkinOperationLock -Mutex $operationLock
 }

@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
   [string]$InstallRoot = (Join-Path $env:LOCALAPPDATA 'CodexDynamicSkin'),
   [string]$DesktopPath = [Environment]::GetFolderPath('Desktop'),
@@ -36,6 +36,16 @@ function New-DynamicSkinQuickLauncher {
   New-Item -ItemType Directory -Path $directory -Force|Out-Null
   & $compiler /nologo /target:winexe /optimize+ /reference:System.Web.Extensions.dll ("/out:$output") $source
   if($LASTEXITCODE-ne0 -or -not(Test-Path -LiteralPath $output -PathType Leaf)){throw 'Fast launcher compilation failed.'}
+  return $output
+}
+
+function New-DynamicSkinManagerLauncher {
+  param([string]$StageRoot)
+  $compiler=@("$env:SystemRoot\Microsoft.NET\Framework64\v4.0.30319\csc.exe","$env:SystemRoot\Microsoft.NET\Framework\v4.0.30319\csc.exe")|Where-Object{Test-Path -LiteralPath $_ -PathType Leaf}|Select-Object -First 1
+  if(-not $compiler){throw 'Microsoft .NET Framework C# compiler is required to build the manager.'}
+  $output=Join-Path $StageRoot 'CodexSkinManager.exe'
+  & $compiler /nologo /target:winexe /platform:x64 /optimize+ /reference:System.Windows.Forms.dll ("/win32icon:"+(Join-Path $StageRoot 'appearance/skin-manager.ico')) ("/out:$output") (Join-Path $StageRoot 'scripts/manager-launcher.cs')
+  if($LASTEXITCODE -ne 0 -or -not(Test-Path -LiteralPath $output)){throw 'Manager compilation failed.'}
   return $output
 }
 
@@ -117,6 +127,9 @@ function Install-DynamicSkin {
   try {
     Copy-Item -LiteralPath (Join-Path $source 'engine') -Destination $stage -Recurse
     Copy-Item -LiteralPath (Join-Path $source 'scripts') -Destination $stage -Recurse
+    if(Test-Path -LiteralPath (Join-Path $source 'appearance/skin-manager.ico')){
+      Copy-Item -LiteralPath (Join-Path $source 'appearance') -Destination $stage -Recurse
+    }
     foreach ($name in @('VERSION', 'LICENSE', 'THIRD_PARTY_NOTICES.md')) {
       if (Test-Path -LiteralPath (Join-Path $source $name)) { Copy-Item -LiteralPath (Join-Path $source $name) -Destination $stage }
     }
@@ -126,6 +139,7 @@ function Install-DynamicSkin {
     Copy-Item -LiteralPath $license -Destination (Join-Path $runtime 'LICENSE') -Force
     Assert-DynamicSkinNode (Join-Path $runtime 'node.exe') (Join-Path $stage 'scripts/node-runtime.json')
     $quickLauncher=New-DynamicSkinQuickLauncher -StageRoot $stage
+    $managerLauncher=New-DynamicSkinManagerLauncher -StageRoot $stage
     if($root -ieq$defaultRoot){
       $legacyRoot=Join-Path $env:LOCALAPPDATA 'CodexDreamSkin'
       $migration=Copy-DynamicSkinLegacyStateToStage -LegacyRoot $legacyRoot -InstallRoot $root -StageRoot $stage
@@ -178,6 +192,10 @@ function Install-DynamicSkin {
         $link.Arguments = if($spec[3]){$spec[2]}else{'-NoProfile -STA -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + (Join-Path $root $spec[1]) + '"' + $spec[2]}
         $link.WorkingDirectory = $root
         $link.IconLocation = $icon
+        $managerIcon = Join-Path $root 'appearance/skin-manager.ico'
+        if ($spec[0] -eq 'Codex Background Manager' -and (Test-Path -LiteralPath $managerIcon -PathType Leaf)) {
+          $link.IconLocation = $managerIcon + ',0'
+        }
         $link.Save()
       }
     }

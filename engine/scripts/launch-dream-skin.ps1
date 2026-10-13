@@ -66,7 +66,12 @@ function Start-DynamicFullLauncher {
   param([string]$ScriptRoot)
   $script=Join-Path $ScriptRoot 'start-dream-skin.ps1'
   $quoted='"'+$script.Replace('"','\"')+'"'
-  Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File $quoted -PromptRestart" -WindowStyle Hidden|Out-Null
+  $logs=Join-Path (Split-Path (Split-Path $ScriptRoot -Parent) -Parent) 'logs'
+  [void][IO.Directory]::CreateDirectory($logs)
+  $attempt=(Get-Date -Format 'yyyyMMdd-HHmmss-fff')+'-'+[guid]::NewGuid().ToString('N')
+  Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList "-NoProfile -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File $quoted -PromptRestart" -WindowStyle Hidden `
+    -RedirectStandardOutput (Join-Path $logs ($attempt+'-output.log')) `
+    -RedirectStandardError (Join-Path $logs ($attempt+'-error.log'))|Out-Null
 }
 
 function Initialize-DynamicQuickPackageLauncher {
@@ -114,6 +119,12 @@ function Invoke-DynamicQuickLauncher {
     if([CodexDynamicSkin.QuickPackageLauncher]::Launch($aumid,$args)-le0){throw 'Window activation failed'}
     return $true
   }catch{
+    try {
+      $logs=Join-Path $stateRoot 'logs'
+      [void][IO.Directory]::CreateDirectory($logs)
+      [IO.File]::AppendAllText((Join-Path $logs 'quick-launch.log'),
+        (Get-Date).ToString('o')+' full-start: '+$_.Exception.Message+[Environment]::NewLine)
+    }catch{}
     Start-DynamicFullLauncher -ScriptRoot $ScriptRoot
     return $false
   }

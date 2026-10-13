@@ -1,73 +1,112 @@
-# Codex Dynamic Skin
+<p align="center">
+  <img src="docs/images/app-icon.png" width="128" height="128" alt="Codex Skin Manager icon">
+</p>
+<h1 align="center">Codex Skin Manager</h1>
+<p align="center">Give Codex an image or animated background. Import, preview, and switch wallpapers in one window.</p>
+<p align="center">
+  <a href="https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/latest/download/Codex-Skin-Manager-Setup.exe"><strong>Download for Windows</strong></a>
+  · <a href="README.md">中文</a> · <a href="CHANGELOG.md">Changelog</a>
+</p>
+<p align="center">
+  <a href="https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/latest"><img src="https://img.shields.io/github/v/release/JiPaiFan1109/Codex-Dynamic-Skin?display_name=tag&sort=semver" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Windows-x64-0078D4" alt="Windows x64">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License"></a>
+</p>
 
-**English** · [中文](README.md) · [Changelog](CHANGELOG.md)
+A community tool, **not an official OpenAI product or affiliated with OpenAI**. Install the official Microsoft Store edition of Codex first. The application interface is currently in Chinese.
 
-[![Latest release](https://img.shields.io/github/v/release/JiPaiFan1109/Codex-Dynamic-Skin?display_name=tag&sort=semver)](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/latest)
-[![Release date](https://img.shields.io/github/release-date/JiPaiFan1109/Codex-Dynamic-Skin)](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases)
-![Windows x64](https://img.shields.io/badge/Windows-x64-0078D4)
-[![License](https://img.shields.io/github/license/JiPaiFan1109/Codex-Dynamic-Skin)](LICENSE)
+## Interface and features
 
-Image and video backgrounds for the Windows Codex desktop app, with readable chat surfaces. A community project based on [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18. **Not an official OpenAI product or affiliated with OpenAI.**
+<p align="center">
+  <img src="docs/images/skin-manager.png" width="1100" alt="Codex Skin Manager: wallpaper gallery, video preview, apply controls, and local Codex detection">
+</p>
 
-![High-resolution Earth video background in a real Codex window](docs/media/earth-demo.webp)
-
-[Watch the full high-quality MP4 demo (about 18 seconds)](docs/media/earth-demo.mp4) · [Get the Earth background](docs/earth-background.md)
-
-Recorded from a real Codex window after checking that no sensitive personal information is visible. The inline preview is a 1128 × 720 animated WebP loop of about 10 seconds; the full MP4 runs for about 18 seconds. The original Earth wallpaper video is not included in the repository or installer.
+- **Images and videos:** import local files and use them as Codex backgrounds.
+- **Wallpaper library:** card gallery, image/video filters, large previews, silent video playback, renaming, and deletion.
+- **Automatic Codex detection:** the manager locates the supported local client; Apply and Open Codex use the local skin engine.
+- **Keep your collection:** moving original files does not affect imported wallpapers. Upgrades preserve the library, and you can restore Codex's original appearance.
 
 <details>
-<summary>Static preview</summary>
+<summary>See an animated background inside Codex</summary>
 
-![Earth background preview](docs/images/earth-preview.png)
+![Animated Earth background in a real Codex window](docs/media/earth-demo.webp)
+
+[Watch the full MP4 demo](docs/media/earth-demo.mp4) · [Get the demonstrated Earth wallpaper](docs/earth-background.md)
+
+Recorded from a real Codex window after checking for sensitive information. The original Earth video is not bundled; obtain it according to its creator's terms.
 
 </details>
 
-## Recent updates
+## Important updates
 
-Every public version updates this table, the full [changelog](CHANGELOG.md), and its GitHub Release Notes. Only verified, published releases appear here.
-
-| Date | Version | Main changes |
+| Date (Beijing time) | Version | Changes |
 | --- | --- | --- |
-| 2026-10-08 | 0.1.3 | Make Dream Skin the single everyday entry, prevent ordinary and skinned profiles from coexisting, and migrate legacy dynamic themes |
-| 2026-10-07 | 0.1.2 | Fix startup rollback after app updates and recycled PIDs; add a lightweight window activation path averaging about 0.7 seconds locally |
-| 2026-10-02 | [0.1.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.1) | Make automatic verification silent; support the Codex 26.928 home structure |
-| 2026-10-01 | [0.1.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.0) | Initial public release with image/video backgrounds, recovery, and packaging |
+| 2026-10-13 | [0.2.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.0) | Windows setup, full manager, transparent icon, local Codex detection, and removal of unused upstream tray/features |
+| 2026-10-08 | [0.1.3](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.3) | Improved launch entry, multiple-instance protection, and legacy theme migration |
+| 2026-10-07 | [0.1.2](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.2) | Fixed startup rollback after updates and improved reopening |
+| 2026-10-02 | [0.1.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.1) | Silent verification and compatibility with the updated home screen |
+| 2026-10-01 | [0.1.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.0) | First public release with images, videos, and appearance restoration |
 
-Releases are driven by tested, useful changes rather than an artificial update schedule.
+See the [full changelog](CHANGELOG.md) for details.
 
-## Install
+## Install and use
 
-Version **0.1.3** targets **Windows x64** with the official Microsoft Store **OpenAI.Codex** package already installed. Other client distributions, macOS, Linux, and ARM64 are outside this release's support scope.
+Supports **Windows x64 with the official Microsoft Store OpenAI.Codex package**. This version does not support macOS, Linux, Windows ARM64, or other Codex distributions.
 
-1. Download `Codex-Dynamic-Skin-0.1.3-windows-x64.zip` from [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases). GitHub's automatic source archives are not installers.
-2. **Extract the entire ZIP** to a normal local folder, then double-click `Install.cmd`.
-3. Launch using the desktop **Codex** shortcut. Dream Skin backs up and takes over an existing desktop shortcut with that name as the single everyday entry; the official Store entry remains available for recovery.
-4. Open **Codex Background Manager** on the desktop to select and apply an image or video. Save your work before following any restart prompt.
+1. **[Download setup](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/latest/download/Codex-Skin-Manager-Setup.exe)** and run `Codex-Skin-Manager-Setup.exe`.
+2. Open **Codex 换肤管理中心** from the desktop or Start menu. The bottom of the window shows the detected Codex version. If needed, install the official client and select **重新检测** (Detect again).
+3. Select **导入壁纸** (Import wallpaper). Importing saves a file without applying it; select it to preview.
+4. Select **应用壁纸** (Apply). Save your work before accepting a Codex restart prompt.
+5. Select **打开 Codex** (Open Codex) for daily use, or use **打开换肤版 Codex** in the Start menu. Select **恢复原始外观** to restore the original appearance.
 
-The Release ZIP includes pinned **Node.js 24.19.0 x64** and its license. No manual Node.js installation or npm command is needed. Build and install checks verify the runtime's SHA-256 and OpenJS Foundation Authenticode signature; this does not mean the project scripts are signed by OpenAI or Microsoft. Installation does not require disabling Windows security protections.
+No manual Node.js installation, commands, or API key are required. Codex itself is installed separately. The previous tray menu is no longer the application entry point.
 
-## Backgrounds
+### Supported media
 
-| Type | Requirements and processing |
+| Type | Requirements |
 | --- | --- |
-| Image | PNG, JPG/JPEG, or WebP; up to 10 MiB |
-| Video | Input up to 2 GiB; Windows MediaTranscoder creates silent H.264 MP4, preserving aspect ratio within 1920 × 1080 at 30 fps; output up to 128 MiB |
+| Images | PNG, JPG/JPEG, WebP; up to 10 MiB |
+| Videos | Input up to 2 GiB; converted to silent MP4, with a maximum output of 128 MiB |
 
-Long videos may need to be shortened before import; the app does not trim them automatically. Accepted containers include MP4, MOV, M4V, WMV, AVI, MKV, and WebM, but decoding depends on your Windows media components. If decoding fails, export an H.264 MP4 and try again.
+Video decoding depends on Windows media components. If import fails, export an H.264 MP4. Shorten videos that exceed the output limit; the app does not trim them automatically.
 
-The included default is a **NightSky** still image generated by this project's `scripts/generate-demo.ps1`. To use the Earth video shown above, follow the [background acquisition guide](docs/earth-background.md).
+The default **Night Sky** image is generated by this project. See the [acquisition guide](docs/earth-background.md) for the demonstrated Earth wallpaper.
 
-## Restore and operation
+### Upgrades, uninstalling, and troubleshooting
 
-- Use the desktop **Restore Codex Appearance** shortcut to return to the native appearance. This is separate from removing the installation directory.
-- Installation and runtime state live in `%LOCALAPPDATA%\CodexDynamicSkin`, with an independent data directory. The default install, launch, and appearance restore workflows do not rewrite the global `%USERPROFILE%\.codex\config.toml`.
-- Use the desktop **Codex** (Dream Skin) shortcut as the everyday entry. If an ordinary instance from the official entry is detected alongside Dream Skin, the launcher requires explicit consent before closing both windows and restarting only Dream Skin; declining leaves every process unchanged.
-- The desktop icon is extracted from a ChatGPT icon resource in the locally installed official Codex package. It is not redistributed in the repository or Release ZIP. A Windows icon is used if the resource is unavailable.
-- Fast reopening reuses background processes. The first launch after a full exit can still take longer. Video decoding and background processes consume memory and CPU/GPU resources.
-- Codex updates can change its page structure or launch behavior. Compatibility with every version, permanent zero overhead, and instant cold starts are not guaranteed.
+- **Upgrade:** run the new installer; your wallpaper library is retained.
+- **Uninstall:** use Windows Installed apps. Restoration must finish first; cancellation or failure aborts uninstall. The library is retained.
+- **Codex not found:** verify that the current Windows user has the official Store package, then detect again.
+- **No skin after using the official entry:** open Codex from the manager or apply a wallpaper again, following any restart prompt.
+- **Failure after a Codex update:** client layout and launch behavior can change. Check [Releases](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases) for compatibility updates.
 
-## Source and licensing
+## Technical details and source builds
 
-Project code uses the [MIT License](LICENSE), retaining `Copyright (c) 2026 Codex Dream Skin Studio contributors`. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for upstream attribution, Node.js licensing, and media boundaries. MIT does not cover third-party wallpapers, OpenAI branding, or locally extracted icons.
+<details>
+<summary>Runtime, data locations, and the compatible ZIP workflow (optional reading)</summary>
 
-See [SECURITY.md](SECURITY.md) for security mechanisms and reporting guidance.
+- Setup uses `%LOCALAPPDATA%\CodexDynamicSkin` without administrator privileges; the library is in its `wallpaper-library` directory.
+- Detection uses the registered local Codex package. Applying starts the local engine and verifies the result; detection alone does not apply a skin.
+- Default installation, startup, and restoration do not rewrite global `%USERPROFILE%\.codex\config.toml`. Legacy recovery safeguards remain.
+- Packages bundle pinned Node.js 24.19.0 x64 and its license, verifying SHA-256 and the OpenJS Foundation signature. Project EXEs have no project code-signing certificate; the Node.js signature does not sign this installer. Disabling Windows security is not required.
+- Windows media components convert video to silent H.264 MP4 within 1920 × 1080 at 30 fps, preserving aspect ratio.
+- The [Release ZIP](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases) remains available: extract everything and run `Install.cmd`. Automatic source archives do not include the runtime.
+- Background processes and videos use memory and CPU/GPU resources. Compatibility with every Codex version and zero overhead are not guaranteed.
+
+</details>
+
+Development: [Build guide](docs/windows-application.md) · [Validation](docs/windows-application-validation.md) · [Pre-release audit](docs/pre-release-audit.md) · [Security](SECURITY.md)
+
+## Attribution and license
+
+Based on [Codex Dream Skin](https://github.com/Fei-Away/Codex-Dream-Skin) v1.5.18, retaining necessary local skin, launch, and recovery implementation.
+
+Project code uses the **[MIT License](LICENSE)** and retains `Copyright (c) 2026 Codex Dream Skin Studio contributors`. [Third-party notices](THIRD_PARTY_NOTICES.md) cover upstream attribution, Node.js licensing, and media boundaries. MIT does not cover third-party wallpapers, OpenAI branding, or official application resources.
+
+## Buy the author a Mixue drink
+
+If this tool helps you, contributions support continued maintenance.
+
+<p align="center">
+  <a href="docs/images/wechat-donation.jpg"><img src="docs/images/wechat-donation.jpg" alt="WeChat contribution QR code" width="316"></a>
+</p>

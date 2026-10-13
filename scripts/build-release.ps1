@@ -24,14 +24,17 @@ try {
   Assert-DynamicSkinNode $NodeRuntimePath (Join-Path $PSScriptRoot 'node-runtime.json')
   $nodeLicense = Join-Path (Split-Path $NodeRuntimePath -Parent) 'LICENSE'
   if (-not (Test-Path -LiteralPath $nodeLicense -PathType Leaf)) { throw 'Node LICENSE missing.' }
-  # Exact file allowlist: scratch data, arbitrary images, icons and future local files never enter a release.
+  # Only the approved project manager icon is distributable; official application icons stay local.
   $files = @(
     'VERSION','LICENSE','THIRD_PARTY_NOTICES.md','README.md','README.en.md','CHANGELOG.md','SECURITY.md','docs/earth-background.md','docs/images/wechat-donation.jpg','Install.cmd',
+    'docs/images/app-icon.png','docs/images/skin-manager.png','docs/windows-application.md','docs/windows-application-validation.md','docs/pre-release-audit.md',
     'scripts/install.ps1','scripts/manage-background.ps1','scripts/media.ps1','scripts/node-runtime.json',
+    'scripts/wallpaper-library.ps1','scripts/wallpaper-preview.ps1','scripts/skin-manager.ps1','scripts/skin-manager.xaml',
+    'scripts/manager-launcher.cs','scripts/uninstall-app.ps1','appearance/skin-manager.ico',
     'engine/VERSION',
-    'engine/assets/demo-background.png','engine/assets/theme.json','engine/assets/theme-package-validator.mjs',
+    'engine/assets/demo-background.png','engine/assets/theme.json',
     'engine/assets/selectors.json','engine/assets/safe-css-validator.mjs','engine/assets/safe-css-policy.json',
-    'engine/assets/renderer-inject.js','engine/assets/earth-background.css','engine/assets/dream-skin.css',
+    'engine/assets/renderer-inject.js','engine/assets/earth-background.css',
     'engine/scripts/video-windows.ps1','engine/scripts/video-server.mjs','engine/scripts/video-blob.mjs',
     'engine/scripts/launch-dream-skin.ps1',
     'engine/scripts/quick-launcher.cs',
@@ -51,6 +54,8 @@ try {
   Copy-Item -LiteralPath $NodeRuntimePath -Destination (Join-Path $runtime 'node.exe')
   Copy-Item -LiteralPath $nodeLicense -Destination (Join-Path $runtime 'LICENSE')
   Assert-DynamicSkinNode (Join-Path $runtime 'node.exe') (Join-Path $stage 'scripts/node-runtime.json')
+  $null=New-DynamicSkinQuickLauncher -StageRoot $stage
+  $null=New-DynamicSkinManagerLauncher -StageRoot $stage
   $hashes = @(Get-ChildItem -LiteralPath $stage -Recurse -File | Sort-Object FullName | ForEach-Object {
     (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $_.FullName.Substring($stage.Length + 1).Replace('\','/')
   })

@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
   [int]$Port = 9345,
   [switch]$RestartExisting,
@@ -223,7 +223,7 @@ try {
   if ($pendingAppearanceTransaction) {
     # A previous process ended before it could commit or recover appearance.
     # Do not reuse its live session: the locked restart path closes Codex first,
-    # then Install-DreamSkinBaseTheme performs the durable three-way recovery.
+    # then the pending appearance transaction is recovered before relaunch.
     $appearanceRecovery = 'blocked'
     $cdpIdentity = $null
   }
@@ -234,6 +234,11 @@ try {
     Get-DreamSkinCodexProcesses -Codex $codexToStop
   }
   if (-not $debugReady -and $codexProcesses.Count -gt 0) {
+    Write-Host ('Restart check: ' + ([pscustomobject]@{
+      time = (Get-Date).ToString('o'); port = $Port; pendingAppearance = $pendingAppearanceTransaction
+      processes = @($codexProcesses | Where-Object { $_.CommandLine -notmatch '--type=' } |
+        Select-Object ProcessId, ParentProcessId, ExecutablePath, CommandLine)
+    } | ConvertTo-Json -Depth 4 -Compress))
     $restartAuthorized = [bool]$RestartExisting
     if (-not $restartAuthorized -and $PromptRestart) {
       $restartAuthorized = Confirm-DreamSkinRestart -Message `
@@ -598,6 +603,7 @@ try {
       $verify = Invoke-DreamSkinNative -FilePath $node.Path -ArgumentList $verifyArguments
       Write-DreamSkinUtf8FileAtomically -Path $VerifyPath -Content (($verify.Output -join "`r`n") + "`r`n")
       if ($verify.ExitCode -eq 0) { break }
+      Write-Host ('Verification failed at ' + (Get-Date).ToString('o') + ': ' + ($verify.Output -join "`r`n"))
       # A verify can fail while the theme is demonstrably on screen: the
       # renderer reports the document visible, the viewport sized and the shell
       # structure present, and only the native-window probe -- which some Codex

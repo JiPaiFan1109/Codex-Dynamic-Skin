@@ -10,8 +10,8 @@ if (-not (Test-Path -LiteralPath $NodeRuntimePath -PathType Leaf)) {
 if ($LASTEXITCODE -ne 0) { throw 'Node test suite failed.' }
 foreach ($test in Get-ChildItem -LiteralPath (Join-Path $root 'tests') -Filter '*.ps1' -File | Sort-Object Name) {
   Write-Host ('Running ' + $test.Name)
-  $arguments = @('-NoProfile','-ExecutionPolicy','RemoteSigned','-File',$test.FullName)
-  if ($test.Name -like 'install-*') { $arguments += @('-NodeRuntimePath',$NodeRuntimePath) }
+  $arguments = @('-STA','-NoProfile','-ExecutionPolicy','RemoteSigned','-File',$test.FullName)
+  if ($test.Name -like 'install-*' -or $test.Name -eq 'wallpaper-upgrade.tests.ps1') { $arguments += @('-NodeRuntimePath',$NodeRuntimePath) }
   & powershell.exe @arguments
   if ($LASTEXITCODE -ne 0) { throw ('Windows test failed: ' + $test.Name) }
 }

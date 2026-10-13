@@ -1,4 +1,4 @@
-param([string]$NodeRuntimePath = "$env:LOCALAPPDATA\CodexDreamSkin\engine\runtime\node\node.exe")
+﻿param([string]$NodeRuntimePath = "$env:LOCALAPPDATA\CodexDreamSkin\engine\runtime\node\node.exe")
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
 if (-not (Test-Path "$repo/scripts/install.ps1")) { throw 'Installer is missing.' }
@@ -29,6 +29,10 @@ try {
   New-Item "$root/engine" -ItemType Directory -Force | Out-Null
   Set-Content "$root/engine/old.txt" 'recover me'
   Set-Content "$root/private.txt" 'preserve me'
+  Add-Type -AssemblyName System.Drawing
+  New-Item "$root/appearance" -ItemType Directory -Force|Out-Null
+  $customIconStream=[IO.File]::Create("$root/appearance/skin-manager.ico")
+  try{[Drawing.SystemIcons]::Information.Save($customIconStream)}finally{$customIconStream.Dispose()}
   Install-DynamicSkin -SourceRoot $repo -InstallRoot $root -DesktopPath $desktop -NodeRuntimePath $NodeRuntimePath
   $shell = New-Object -ComObject WScript.Shell
   $link = $shell.CreateShortcut("$desktop/Codex.lnk")
@@ -36,6 +40,8 @@ try {
   if (Test-Path "$desktop/Codex Dynamic Skin.lnk") { throw 'Installer left a second normal Codex entry on the desktop.' }
   if (-not (Test-Path -LiteralPath $link.TargetPath -PathType Leaf)) { throw 'Compiled fast launcher is missing.' }
   if ($link.IconLocation -notlike '*icons\chatgpt-app-light.ico*' -or -not (Test-Path "$root/icons/chatgpt-app-light.ico")) { throw 'Installed shortcut did not receive the locally registered official icon.' }
+  $managerLink=$shell.CreateShortcut("$desktop/Codex Background Manager.lnk")
+  if($managerLink.IconLocation -notlike '*appearance\skin-manager.ico*'){throw 'Manager upgrade ignored the user custom icon'}
   if (-not (Get-ChildItem "$root/backups" -Recurse -Filter Codex.lnk)) { throw 'Existing Codex shortcut was not backed up.' }
   if (-not (Test-Path "$root/private.txt")) { throw 'Private state deleted.' }
   if (-not (Get-ChildItem "$root/backups" -Recurse -Filter old.txt)) { throw 'Old engine not recoverable.' }

@@ -396,11 +396,6 @@ function Assert-DreamSkinTomlLineEditingSafe {
   }
 }
 
-function Get-DreamSkinDesktopSectionPattern {
-  $desktopToken = Get-DreamSkinTomlKeyTokenPattern -Key 'desktop'
-  return "(?ms)^[\t ]*\[[\t ]*$desktopToken[\t ]*\][\t ]*(?:#[^\r\n]*)?(?:\r?\n|(?=\z))(?<body>.*?)(?=^[\t ]*\[\[?|\z)"
-}
-
 function Test-DreamSkinDesktopNestedTable {
   param(
     [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Content,
@@ -613,17 +608,6 @@ function Test-DreamSkinAppearanceMarkerLogicalAbsent {
   return $schemaVersion -eq 3 -and "$($Marker.logicalState)" -ceq 'absent'
 }
 
-function Get-DreamSkinAppearanceMarkerContent {
-  param([bool]$Managed = $false)
-  $schemaVersion = 1
-  if ($Managed) { $schemaVersion = 2 }
-  $marker = [ordered]@{
-    schemaVersion = $schemaVersion
-    appearanceThemeManaged = $Managed
-  } | ConvertTo-Json
-  return ($marker + "`r`n")
-}
-
 function Get-DreamSkinLogicalAbsentAppearanceMarkerContent {
   $marker = [ordered]@{
     schemaVersion = 3
@@ -631,24 +615,6 @@ function Get-DreamSkinLogicalAbsentAppearanceMarkerContent {
     logicalState = 'absent'
   } | ConvertTo-Json
   return ($marker + "`r`n")
-}
-
-function Write-DreamSkinAppearanceMarker {
-  param(
-    [Parameter(Mandatory = $true)][string]$BackupPath,
-    [bool]$Managed = $false,
-    [AllowNull()][byte[]]$ExpectedBytes
-  )
-  $markerPath = Get-DreamSkinAppearanceMarkerPath -BackupPath $BackupPath
-  if (Get-Command Assert-DreamSkinNoReparseComponents -ErrorAction SilentlyContinue) {
-    Assert-DreamSkinNoReparseComponents -Path $markerPath
-  }
-  $content = Get-DreamSkinAppearanceMarkerContent -Managed $Managed
-  if ($PSBoundParameters.ContainsKey('ExpectedBytes')) {
-    Write-DreamSkinUtf8FileAtomically -Path $markerPath -Content $content -ExpectedBytes $ExpectedBytes
-  } else {
-    Write-DreamSkinUtf8FileAtomically -Path $markerPath -Content $content
-  }
 }
 
 function Get-DreamSkinAppearanceMarkerSnapshot {
@@ -1034,19 +1000,6 @@ function Test-DreamSkinPendingAppearanceTransaction {
   return $null -ne $state -and "$($state.Stage)" -ceq 'preparing'
 }
 
-function Start-DreamSkinAppearanceTransaction {
-  param(
-    [Parameter(Mandatory = $true)][string]$BackupPath,
-    [Parameter(Mandatory = $true)][object]$Transaction,
-    [AllowNull()][byte[]]$ExpectedBytes
-  )
-  $path = Get-DreamSkinAppearanceTransactionPath -BackupPath $BackupPath
-  $content = Get-DreamSkinAppearanceTransactionContent -Stage 'preparing' `
-    -TransactionId $Transaction.TransactionId -Transaction $Transaction
-  Write-DreamSkinUtf8FileAtomically -Path $path -Content $content -ExpectedBytes $ExpectedBytes
-  return $script:DreamSkinUtf8NoBom.GetBytes($content)
-}
-
 function Complete-DreamSkinAppearanceTransaction {
   param(
     [Parameter(Mandatory = $true)][string]$BackupPath,
@@ -1077,210 +1030,6 @@ function Resolve-DreamSkinPendingAppearanceTransaction {
   if ($null -eq $state -or "$($state.Stage)" -ceq 'committed') { return $null }
   return Restore-DreamSkinManagedAppearanceSnapshot -ConfigPath $ConfigPath `
     -BackupPath $BackupPath -Transaction $state.Transaction
-}
-
-function Install-DreamSkinBaseTheme {
-  [CmdletBinding()]
-  param(
-    [Parameter(Mandatory = $true)]
-    [string]$ConfigPath,
-
-    [Parameter(Mandatory = $true)]
-    [string]$BackupPath,
-
-    [ValidateSet('auto', 'light', 'dark')]
-    [string]$AppearanceTheme = 'auto',
-
-    [switch]$PassThruTransaction
-  )
-
-  if (-not (Test-Path -LiteralPath $ConfigPath)) { throw "Codex config not found: $ConfigPath" }
-  if (Get-Command Assert-DreamSkinNoReparseComponents -ErrorAction SilentlyContinue) {
-    Assert-DreamSkinNoReparseComponents -Path $BackupPath
-    Assert-DreamSkinNoReparseComponents -Path (Get-DreamSkinAppearanceMarkerPath -BackupPath $BackupPath)
-    Assert-DreamSkinNoReparseComponents -Path (Get-DreamSkinAppearanceTransactionPath -BackupPath $BackupPath)
-  }
-  $null = Resolve-DreamSkinPendingAppearanceTransaction `
-    -ConfigPath $ConfigPath -BackupPath $BackupPath
-  $previousJournal = Read-DreamSkinAppearanceTransactionState -BackupPath $BackupPath
-  $previousJournalBytes = if ($null -ne $previousJournal) { $previousJournal.Bytes } else { $null }
-  $originalBytes = [System.IO.File]::ReadAllBytes($ConfigPath)
-  $content = ConvertFrom-DreamSkinUtf8Bytes -Bytes $originalBytes -Path $ConfigPath
-  $appearanceMarkerPath = Get-DreamSkinAppearanceMarkerPath -BackupPath $BackupPath
-  $beforeMarkerSnapshot = Get-DreamSkinAppearanceMarkerSnapshot -BackupPath $BackupPath
-  $appearanceMarker = $beforeMarkerSnapshot.Marker
-  if (Test-DreamSkinAppearanceMarkerLogicalAbsent -Marker $appearanceMarker) {
-    $appearanceMarker = $null
-  }
-  $beforeSnapshot = New-DreamSkinManagedAppearanceSnapshot `
-    -Content $content -MarkerSnapshot $beforeMarkerSnapshot
-  $appearanceMarkerExisted = [bool]$beforeMarkerSnapshot.Exists
-  $backupCreated = $false
-  if (-not (Test-Path -LiteralPath $BackupPath)) {
-    Write-DreamSkinBytesAtomically -Path $BackupPath -Bytes $originalBytes -ExpectedBytes $null
-    $backupCreated = $true
-  }
-
-  $writeCompleted = $false
-  $appliedMarkerSnapshot = $null
-  $appearanceTransaction = $null
-  $journalPrepared = $false
-  try {
-    Assert-DreamSkinDesktopShapeSupported -Content $content
-    $newLine = Get-DreamSkinNewLine -Content $content
-    $desktop = Get-DreamSkinDesktopSection -Content $content
-    if ($null -eq $desktop) {
-      $content = Add-DreamSkinDesktopSection -Content $content -NewLine $newLine
-      $desktop = Get-DreamSkinDesktopSection -Content $content
-    }
-
-    $body = $desktop.Body
-    $backupContent = $null
-    $pinnedAppearance = $AppearanceTheme -ne 'auto'
-    $managedByMarker = $null -ne $appearanceMarker -and [bool]$appearanceMarker.appearanceThemeManaged
-    $legacyMigration = $null -eq $appearanceMarker -and (Test-Path -LiteralPath $BackupPath) -and
-      (Test-DreamSkinLegacyManagedLightTrio -Content $content)
-    # Put the pre-install appearanceTheme back whenever we stop managing it:
-    # either migrating away from the legacy forced-light trio, or un-pinning
-    # after a fixed-appearance theme is replaced by an auto one.
-    if (-not $pinnedAppearance -and ($legacyMigration -or $managedByMarker)) {
-      $backupContent = ConvertFrom-DreamSkinUtf8Bytes -Bytes ([System.IO.File]::ReadAllBytes($BackupPath)) -Path $BackupPath
-      Assert-DreamSkinDesktopShapeSupported -Content $backupContent
-      $backupDesktop = Get-DreamSkinDesktopSection -Content $backupContent
-      $savedAppearance = if ($null -ne $backupDesktop) {
-        Get-DreamSkinSectionSettingLine -Body $backupDesktop.Body -Key 'appearanceTheme'
-      } else { $null }
-      $body = Set-DreamSkinSectionSetting -Body $body -Key 'appearanceTheme' -Line $savedAppearance -NewLine $newLine
-    }
-    if ($pinnedAppearance) {
-      # Native token surfaces (dropdowns/popovers) follow appearanceTheme, so a
-      # fixed-appearance theme pins it to match; Restore puts the original back.
-      $body = Set-DreamSkinSectionSetting -Body $body -Key 'appearanceTheme' `
-        -Line ('appearanceTheme = "{0}"' -f $AppearanceTheme) -NewLine $newLine
-    }
-    $settings = [ordered]@{
-      appearanceLightCodeThemeId = $script:DreamSkinManagedLightCodeTheme
-      appearanceLightChromeTheme = $script:DreamSkinManagedLightChromeTheme
-    }
-    $hasNestedLightChromeTheme = Test-DreamSkinDesktopNestedTable `
-      -Content $content -Key 'appearanceLightChromeTheme'
-    foreach ($key in $settings.Keys) {
-      if ($key -eq 'appearanceLightChromeTheme' -and $hasNestedLightChromeTheme) { continue }
-      $body = Set-DreamSkinSectionSetting -Body $body -Key $key -Line $settings[$key] -NewLine $newLine
-    }
-
-    $content = $content.Substring(0, $desktop.BodyStart) + $body +
-      $content.Substring($desktop.BodyStart + $desktop.BodyLength)
-    $markerContent = Get-DreamSkinAppearanceMarkerContent -Managed $pinnedAppearance
-    $appliedMarkerSnapshot = [pscustomobject]@{
-      Exists = $true
-      Bytes = $script:DreamSkinUtf8NoBom.GetBytes($markerContent)
-      Marker = ConvertFrom-DreamSkinAppearanceMarkerContent `
-        -Content $markerContent -Path $appearanceMarkerPath
-    }
-    $appliedSnapshot = New-DreamSkinManagedAppearanceSnapshot `
-      -Content $content -MarkerSnapshot $appliedMarkerSnapshot
-    $touchedKeys = @()
-    foreach ($key in $script:DreamSkinManagedAppearanceKeys) {
-      $beforeEntry = Get-DreamSkinManagedAppearanceEntry -Snapshot $beforeSnapshot -Key $key
-      $appliedEntry = Get-DreamSkinManagedAppearanceEntry -Snapshot $appliedSnapshot -Key $key
-      if (-not (Compare-DreamSkinManagedAppearanceEntry -Left $beforeEntry -Right $appliedEntry)) {
-        $touchedKeys += $key
-      }
-    }
-    $appearanceTransaction = [pscustomobject]@{
-      SchemaVersion = 2
-      TransactionId = [guid]::NewGuid().ToString('N')
-      Before = $beforeSnapshot
-      Applied = $appliedSnapshot
-      TouchedKeys = @($touchedKeys)
-      MarkerTouched = -not (Compare-DreamSkinAppearanceMarkerSnapshot `
-        -Left $beforeMarkerSnapshot -Right $appliedMarkerSnapshot)
-      JournalBytes = $null
-    }
-    $appearanceTransaction.JournalBytes = Start-DreamSkinAppearanceTransaction `
-      -BackupPath $BackupPath -Transaction $appearanceTransaction `
-      -ExpectedBytes $previousJournalBytes
-    $journalPrepared = $true
-
-    # The durable preparing record precedes both files. A hard stop at either
-    # commit boundary can therefore recover only values still owned by this
-    # attempt instead of treating the marker as completed ownership.
-    if ($appearanceMarkerExisted) {
-      Write-DreamSkinAppearanceMarker -BackupPath $BackupPath -Managed $pinnedAppearance `
-        -ExpectedBytes $beforeMarkerSnapshot.Bytes
-    } else {
-      Write-DreamSkinAppearanceMarker -BackupPath $BackupPath -Managed $pinnedAppearance `
-        -ExpectedBytes $null
-    }
-    Write-DreamSkinUtf8FileAtomically -Path $ConfigPath -Content $content -ExpectedBytes $originalBytes
-    $writeCompleted = $true
-    if ($PassThruTransaction) { return $appearanceTransaction }
-    Complete-DreamSkinAppearanceTransaction `
-      -BackupPath $BackupPath -Transaction $appearanceTransaction
-  } catch {
-    if (-not $writeCompleted) {
-      # Marker and config are separate files. Compensate the marker whenever it
-      # still equals the value written by this attempt, even when the config
-      # failure itself was caused by a concurrent config edit.
-      $markerCleanupSucceeded = $true
-      $markerCleanupUsedLogicalAbsent = $false
-      if ($null -eq $appliedMarkerSnapshot) {
-        # The operation failed before it had a marker value to commit.
-      } elseif ($appearanceMarkerExisted -and (Test-Path -LiteralPath $appearanceMarkerPath)) {
-        try {
-          $currentMarkerSnapshot = Get-DreamSkinAppearanceMarkerSnapshot -BackupPath $BackupPath
-          if (Compare-DreamSkinAppearanceMarkerSnapshot `
-              -Left $currentMarkerSnapshot -Right $appliedMarkerSnapshot) {
-            Write-DreamSkinBytesAtomically -Path $appearanceMarkerPath `
-              -Bytes $beforeMarkerSnapshot.Bytes -ExpectedBytes $currentMarkerSnapshot.Bytes
-          } elseif (-not (Compare-DreamSkinAppearanceMarkerSnapshot `
-              -Left $currentMarkerSnapshot -Right $beforeMarkerSnapshot)) {
-            $markerCleanupSucceeded = $false
-          }
-        } catch {
-          $markerCleanupSucceeded = $false
-        }
-      } elseif (-not $appearanceMarkerExisted -and (Test-Path -LiteralPath $appearanceMarkerPath)) {
-        try {
-          $currentMarkerSnapshot = Get-DreamSkinAppearanceMarkerSnapshot -BackupPath $BackupPath
-          if (Compare-DreamSkinAppearanceMarkerSnapshot `
-              -Left $currentMarkerSnapshot -Right $appliedMarkerSnapshot) {
-            Write-DreamSkinUtf8FileAtomically -Path $appearanceMarkerPath `
-              -Content (Get-DreamSkinLogicalAbsentAppearanceMarkerContent) `
-              -ExpectedBytes $currentMarkerSnapshot.Bytes
-            $markerCleanupUsedLogicalAbsent = $true
-          } elseif (-not (Test-DreamSkinAppearanceMarkerLogicalAbsent `
-              -Marker $currentMarkerSnapshot.Marker)) {
-            $markerCleanupSucceeded = $false
-          }
-        } catch {
-          $markerCleanupSucceeded = $false
-        }
-      }
-
-      $configUnchanged = $false
-      try {
-        $configUnchanged = (Test-Path -LiteralPath $ConfigPath -PathType Leaf) -and
-          (Test-DreamSkinBytesEqual -Left $originalBytes -Right ([System.IO.File]::ReadAllBytes($ConfigPath)))
-      } catch {
-        $configUnchanged = $false
-      }
-      if ($configUnchanged -and $markerCleanupSucceeded -and $journalPrepared) {
-        try {
-          Complete-DreamSkinAppearanceTransaction `
-            -BackupPath $BackupPath -Transaction $appearanceTransaction
-        } catch {
-          # Leave the preparing record for the next locked recovery attempt.
-        }
-      }
-      if ($configUnchanged -and $markerCleanupSucceeded -and $backupCreated -and
-        -not $markerCleanupUsedLogicalAbsent) {
-        Remove-Item -LiteralPath $BackupPath -Force -ErrorAction SilentlyContinue
-      }
-    }
-    throw
-  }
 }
 
 function Restore-DreamSkinManagedAppearanceSnapshot {
