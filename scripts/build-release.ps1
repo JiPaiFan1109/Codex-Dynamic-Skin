@@ -31,6 +31,7 @@ try {
     'scripts/install.ps1','scripts/manage-background.ps1','scripts/media.ps1','scripts/node-runtime.json',
     'scripts/wallpaper-library.ps1','scripts/wallpaper-preview.ps1','scripts/skin-manager.ps1','scripts/skin-manager.xaml',
     'scripts/manager-launcher.cs','scripts/uninstall-app.ps1','appearance/skin-manager.ico',
+    'scripts/check-upgrade.ps1',
     'engine/VERSION',
     'engine/assets/demo-background.png','engine/assets/theme.json',
     'engine/assets/selectors.json','engine/assets/safe-css-validator.mjs','engine/assets/safe-css-policy.json',

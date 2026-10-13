@@ -107,6 +107,15 @@ function New-DynamicPreparedMedia {
   }
 }
 
+function Test-DynamicOperationCancelled {
+  param([System.Exception]$Exception)
+  while($null -ne $Exception){
+    if($Exception -is [OperationCanceledException]){return $true}
+    $Exception=$Exception.InnerException
+  }
+  return $false
+}
+
 function Set-DynamicBackground {
   param([Parameter(Mandatory)]$Prepared, [Parameter(Mandatory)][string]$StateRoot, [Parameter(Mandatory)][scriptblock]$Apply)
   # Serialize managers across the unlocked engine-start phase. The engine uses
@@ -162,6 +171,9 @@ function Invoke-DynamicBackgroundTransaction {
       if ($hadActive) { Copy-Item -LiteralPath (Join-Path $backup 'active-theme') -Destination $active -Recurse }
       if ($hadVideo) { Copy-Item -LiteralPath (Join-Path $backup 'video-theme.json') -Destination $video -Force } else { Remove-Item -LiteralPath $video -Force -ErrorAction SilentlyContinue }
     } finally { Exit-DreamSkinOperationLock -Mutex $lock }
+    # Consent was refused before the engine changed the running session.
+    # Restoring its files is sufficient; applying again would ask to restart twice.
+    if(Test-DynamicOperationCancelled $failure.Exception){throw $failure}
     try { & $Apply } catch { throw "新背景应用失败：$failure；旧配置已恢复，但重新应用失败：$_。请使用打开 Codex 重试。" }
     throw $failure
   }
@@ -178,12 +190,20 @@ function Invoke-DynamicEngine {
   $process = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WindowStyle Hidden -PassThru
   while (-not $process.HasExited) { if ([Environment]::UserInteractive -and ('System.Windows.Forms.Application' -as [type])) { [Windows.Forms.Application]::DoEvents() }; Start-Sleep -Milliseconds 100 }
   $process.WaitForExit(); $process.Refresh()
-  if ($process.ExitCode -ne 0) { throw "应用操作失败（退出码 $($process.ExitCode)）。详见状态目录日志。" }
-  $result = Read-DreamSkinStartResult -StateRoot $StateRoot -Token $token
+  # The engine writes a bounded result even when its process exits unsuccessfully.
+  # Read it first so the manager can explain the cause instead of showing only an exit code.
+  try { $result = Read-DreamSkinStartResult -StateRoot $StateRoot -Token $token } catch {
+    if($process.ExitCode -ne 0){throw "应用操作失败（退出码 $($process.ExitCode)）。请查看安装目录中的日志。"}
+    throw
+  }
   if ($Restore -and $result.outcome -eq 'failure' -and $result.category -eq 'cancelled') { return $false }
+  if ($result.outcome -eq 'failure' -and $result.category -eq 'cancelled') {
+    throw [OperationCanceledException]::new('已取消操作，原有外观未改变。')
+  }
   if ($result.outcome -ne 'success') {
-    if ($Restore) { throw '恢复未完成，已保留壁纸引用。' }
+    if ($Restore) { throw ('恢复未完成：' + $result.category) }
     throw ('应用失败：' + $result.category)
   }
+  if ($process.ExitCode -ne 0) { throw "应用操作失败（退出码 $($process.ExitCode)）。请查看安装目录中的日志。" }
   if ($Restore) { return $true }
 }

@@ -26,7 +26,23 @@ function Get-DynamicManagerActionState {
 function Get-DynamicManagerErrorMessage {
   param([System.Exception]$Exception)
   while($null -ne $Exception.InnerException){$Exception=$Exception.InnerException}
-  return $Exception.Message
+  $message=$Exception.Message
+  $reasons=@{
+    'cdp-launch-failed'='未能启动换肤版 Codex，请关闭 Codex 后从管理中心重试。'
+    'cdp-direct-access-denied'='Windows 阻止了换肤启动，请重新打开官方 Codex，再从管理中心重试。'
+    'cdp-endpoint-unavailable'='未能建立 Codex 换肤连接，请重新打开 Codex 后重试，或检查项目兼容性更新。'
+    'port-unavailable'='换肤连接端口不可用，请稍后重试。'
+    'state-reconciliation-failed'='无法安全确认此前的运行状态，请关闭 Codex 后重试。'
+    'injector-start-failed'='换肤后台未能启动，请重试；仍失败时请查看安装目录中的日志。'
+    'renderer-verification-failed'='未能确认壁纸已经生效，请重新打开 Codex 后重试。'
+    'superseded'='本次操作已被较新的换肤操作取代。'
+    'internal-start-failure'='换肤启动未完成，请查看安装目录中的日志后重试。'
+  }
+  foreach($category in $reasons.Keys){
+    $message=$message.Replace(('应用失败：'+$category),$reasons[$category])
+    $message=$message.Replace(('恢复未完成：'+$category),('恢复未完成：'+$reasons[$category]))
+  }
+  return $message
 }
 
 function New-DynamicSkinManagerWindow {
@@ -191,7 +207,7 @@ function Start-DynamicManagerWork {
     if(-not $PrepareOnly){$connection=Get-DynamicCodexConnection}
     if($Operation -in @('Apply','Open') -and -not $connection.Available){throw $connection.Message}
     $selected=$null;$message='壁纸库已加载。'
-    switch($Operation){
+    try { switch($Operation){
       'Import' {
         $kind='Video';if([IO.Path]::GetExtension($Argument).ToLowerInvariant() -in @('.png','.jpg','.jpeg','.webp')){$kind='Image'}
         $result=Import-DynamicWallpaper $Argument $kind $StateRoot $report;$selected=$result.Item.Id
@@ -205,11 +221,14 @@ function Start-DynamicManagerWork {
       'Open' {Invoke-DynamicEngine -StateRoot $StateRoot;$message='Codex 已打开。'}
       'Restore' {
         $restored=Restore-DynamicWallpaperAppearance $StateRoot {Invoke-DynamicEngine -StateRoot $StateRoot -Restore}
-        $message='已恢复原始外观，壁纸收藏仍保留。'
+        $message='当前为原始外观，壁纸收藏仍保留。'
         if($restored -eq $false){$message='已取消恢复。'}
       }
       'Refresh' { }
       default {throw '未知管理操作。'}
+    }}catch{
+      if(-not (Test-DynamicOperationCancelled $_.Exception)){throw}
+      $selected=$Argument;$message='已取消操作，原有外观未改变。'
     }
     $status=Get-DynamicWallpaperStatus $StateRoot
     if($status.Error){$message='读取当前背景失败：'+$status.Error}
@@ -229,7 +248,7 @@ function Complete-DynamicManagerWork {
   $ui.Timer.Stop();$prompt=$false
   try {
     $results=$ui.Worker.EndInvoke($ui.Async)
-    if($ui.Worker.HadErrors){throw ($ui.Worker.Streams.Error|Out-String)}
+    if($ui.Worker.HadErrors){throw $ui.Worker.Streams.Error[0].Exception}
     $result=$results|Select-Object -Last 1
     if(-not $result){throw '后台操作未返回结果。'}
     $ui.Items=@($result.Items);$ui.Status=$result.Status;$ui.Controls.StatusText.Text=$result.Message
@@ -310,7 +329,7 @@ function Show-DynamicSkinManager {
   })
   $controls.PreviewVideo.Add_MediaEnded({$video=$script:SkinManager.Controls.PreviewVideo;$video.Position=[timespan]::Zero;$video.Play()})
   $controls.PreviewVideo.Add_MediaFailed({Stop-DynamicManagerPreview;$script:SkinManager.Controls.PreviewNotice.Text='本机无法播放此预览。文件仍保留，可尝试应用壁纸。'})
-  $window.Add_Closing({param($sender,$eventArgs);if($script:SkinManager.Busy){$eventArgs.Cancel=$true;[Windows.MessageBox]::Show($script:SkinManager.Window,'请等待当前操作完成后再关闭。','正在处理')|Out-Null}})
+  $window.Add_Closing({param($sender,$eventArgs);if($script:SkinManager.Busy){$eventArgs.Cancel=$true;$script:SkinManager.Controls.StatusText.Text='任务仍在进行，请等待完成后再关闭窗口。'}})
   $window.Add_ContentRendered({if(-not $script:SkinManager.Async){Start-DynamicManagerWork Refresh}})
   try {Update-DynamicManagerButtons;$null=$window.ShowDialog()}
   finally {Stop-DynamicManagerPreview;$timer.Stop();if($script:SkinManager.Worker){$script:SkinManager.Worker.Dispose()};if($script:SkinManager.Runspace){$script:SkinManager.Runspace.Dispose()};$script:SkinManager=$null}
