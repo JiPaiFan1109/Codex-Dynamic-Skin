@@ -21,7 +21,8 @@ try{
   function Get-Process {
     param($Id,$ErrorAction)
     $timestamp=$started;if($script:recycled){$timestamp=$started.AddSeconds(1)}
-    $handle=[pscustomobject]@{Id=$Id;Path=$runtime;StartTime=$timestamp;HasExited=$false}
+    $handlePath=$runtime;if($script:noHandlePath){$handlePath=$null}
+    $handle=[pscustomobject]@{Id=$Id;Path=$handlePath;StartTime=$timestamp;HasExited=$false}
     $handle|Add-Member ScriptMethod WaitForExit {param($Timeout);return $this.HasExited}
     $handle|Add-Member ScriptMethod Dispose {}
     return $handle
@@ -34,6 +35,10 @@ try{
   Assert (-not(Invoke-DynamicUpgradePreparation $root)) 'Verified helpers should permit upgrade'
   Assert (($script:stopped -join ',') -eq '101,102') 'Only the recorded injector and video helper should be stopped'
   Assert ((Get-FileHash $statePath).Hash -eq $before) 'Preparation modified saved appearance state'
+  $script:fixtureProcesses=@($originalProcesses);$script:stopped=@();$script:noHandlePath=$true
+  Assert (-not(Invoke-DynamicUpgradePreparation $root)) '32-bit Process.Path can be unavailable; verified CIM identity must still permit helper cleanup'
+  Assert ($script:stopped.Count -eq 2) 'Verified CIM helpers were not retired when Process.Path was unavailable'
+  $script:noHandlePath=$false
   $script:fixtureProcesses=@($originalProcesses)+@([pscustomobject]@{ProcessId=103;ExecutablePath=$runtime;CommandLine=('"'+$runtime+'" -e "setInterval(()=>{},1000)"')})
   $script:stopped=@()
   Assert ([bool](Invoke-DynamicUpgradePreparation $root)) 'Unrecognized runtime process must block upgrade'
