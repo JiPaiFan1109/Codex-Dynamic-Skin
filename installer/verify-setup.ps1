@@ -66,6 +66,29 @@ try{
     if($node.HasExited){throw 'Preflight terminated a running process'}
     'PASS active-runtime upgrade is rejected before changes and never kills processes'
   }finally{if($node -and -not $node.HasExited){Stop-Process -Id $node.Id -Force}}
+  # Closing the UI can leave the real skin helper alive. Recognized helpers should
+  # be retired automatically while appearance configuration remains untouched.
+  $helperPath=Join-Path $installed 'engine/scripts/injector.mjs'
+  $helperBytes=[IO.File]::ReadAllBytes($helperPath)
+  $helperState=Join-Path $installed 'state.json'
+  $node=$null
+  try{
+    [IO.File]::WriteAllText($helperPath,'setInterval(()=>{},1000);')
+    $runtime=Join-Path $installed 'engine/runtime/node/node.exe'
+    $node=Start-Process -FilePath $runtime -ArgumentList @(('"'+$helperPath+'"'),'--watch') -WindowStyle Hidden -PassThru
+    $record=[ordered]@{nodePath=$runtime;injectorPid=$node.Id;injectorStartedAt=$node.StartTime.ToUniversalTime().ToString('o');injectorPath=$helperPath}
+    $record|ConvertTo-Json|Set-Content $helperState -Encoding UTF8
+    $stateHash=(Get-FileHash $helperState).Hash
+    Run-Setup $setup @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART')
+    $node.Refresh()
+    if(-not $node.HasExited){throw 'Setup left the recorded helper running'}
+    if((Get-FileHash $helperState).Hash -ne $stateHash -or (Get-Content $kept) -ne 'keep my wallpaper'){throw 'Helper cleanup changed user data'}
+    'PASS setup retires the recorded skin helper and preserves appearance state and collection'
+  }finally{
+    if($node -and -not $node.HasExited){Stop-Process -Id $node.Id -Force}
+    [IO.File]::WriteAllBytes($helperPath,$helperBytes)
+    if(Test-Path $helperState){Remove-Item -LiteralPath $helperState -Force}
+  }
   $obsolete=@('engine/assets/dream-skin.css','engine/assets/theme-package-validator.mjs','engine/scripts/tray-dream-skin.ps1')
   foreach($relative in $obsolete){Set-Content (Join-Path $installed $relative) 'obsolete upstream file'}
   Run-Setup $setup @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART')

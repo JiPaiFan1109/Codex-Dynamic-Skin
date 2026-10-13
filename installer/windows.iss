@@ -85,14 +85,19 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ExitCode: Integer;
   Params: String;
+  BlockReason: AnsiString;
 begin
   Result := '';
   ExtractTemporaryFile('check-upgrade.ps1');
-  Params := '-NoProfile -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + ExpandConstant('{tmp}\check-upgrade.ps1') + '" -InstallRoot "' + ExpandConstant('{app}') + '"';
+  Params := '-NoProfile -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + ExpandConstant('{tmp}\check-upgrade.ps1') + '" -InstallRoot "' + ExpandConstant('{app}') + '" -ResultPath "' + ExpandConstant('{tmp}\upgrade-check-result.txt') + '"';
   if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
     Result := '无法完成安装前检查，本次安装未替换文件。请重新运行安装程序。'
-  else if ExitCode <> 0 then
-    Result := '请先在换肤管理中心恢复原始外观，再关闭管理中心并重试安装。如果仍然无法安装，请重新启动电脑后重试。本次安装未替换文件。';
+  else if ExitCode <> 0 then begin
+    if LoadStringFromFile(ExpandConstant('{tmp}\upgrade-check-result.txt'), BlockReason) and (Length(BlockReason) > 0) then
+      Result := UTF8Decode(BlockReason)
+    else
+      Result := '无法完成后台检查，本次安装未替换文件。请退出相关程序后重试。';
+  end;
 end;
 
 function InitializeSetup: Boolean;
