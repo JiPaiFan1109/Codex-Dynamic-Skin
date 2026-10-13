@@ -56,8 +56,11 @@ function Invoke-DynamicUpgradePreparation {
       if(-not $handle){continue}
       $handles.Add($handle)
       $started=if($record.Started -is [datetime]){$record.Started.ToUniversalTime()}else{[datetime]::Parse([string]$record.Started,[Globalization.CultureInfo]::InvariantCulture,[Globalization.DateTimeStyles]::RoundtripKind).ToUniversalTime()}
-      if($handle.StartTime.ToUniversalTime().Ticks -ne $started.Ticks){return ($blocked+' 进程启动时间不一致：记录 '+$started.ToString('o')+'，实际 '+$handle.StartTime.ToUniversalTime().ToString('o')+'。')}
-      if($handle.Path -ine $runtime){return ($blocked+' 运行文件路径不一致。')}
+      if($handle.StartTime.ToUniversalTime().Ticks -ne $started.Ticks){return ($blocked+' 进程启动时间发生变化。')}
+      # 32-bit PowerShell cannot read MainModule/Path for a 64-bit node process.
+      # CIM already confirmed the executable and argv; keep the native PID/start-time
+      # check mandatory, and reject a conflicting handle path when it is available.
+      if($handle.Path -and $handle.Path -ine $runtime){return ($blocked+' 运行文件路径不一致。')}
     }
     foreach($handle in $handles){
       Stop-Process -InputObject $handle -Force -ErrorAction Stop
