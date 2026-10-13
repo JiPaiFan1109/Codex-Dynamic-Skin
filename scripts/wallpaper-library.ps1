@@ -244,6 +244,9 @@ function Remove-DynamicWallpaper {
 function Restore-DynamicWallpaperAppearance {
   param([string]$StateRoot,[scriptblock]$Restore)
   Invoke-DynamicWallpaperLock $StateRoot {
+    $hasSession=Test-Path -LiteralPath (Join-Path $StateRoot 'state.json')
+    $hasTheme=(Test-Path -LiteralPath (Join-Path $StateRoot 'active-theme')) -or (Test-Path -LiteralPath (Join-Path $StateRoot 'video-theme.json'))
+    if(-not $hasSession -and ((Test-DreamSkinPaused -StateRoot $StateRoot) -or -not $hasTheme)){return $true}
     $restored = & $Restore
     if ($restored -eq $false) { return $false }
     # The restore engine closes the injected session and removes its paused file.

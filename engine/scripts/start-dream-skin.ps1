@@ -174,6 +174,9 @@ try {
     -Message (Get-DreamSkinText -Key 'MultipleInstancesPrompt' -Language $language)
   if ($coexistenceAction -ceq 'cancel') {
     Write-Host (Get-DreamSkinText -Key 'LaunchCancelled' -Language $language)
+    if ($ResultToken) {
+      Write-DreamSkinStartResult -StateRoot $StateRoot -Token $ResultToken -Outcome failure -Category cancelled -AppearanceRecovery retained
+    }
     exit 0
   }
   if ($coexistenceAction -ceq 'restart') {
@@ -245,6 +248,9 @@ try {
         (Get-DreamSkinText -Key 'RestartPrompt' -Language $language)
       if (-not $restartAuthorized) {
         Write-Host (Get-DreamSkinText -Key 'LaunchCancelled' -Language $language)
+        if ($ResultToken) {
+          Write-DreamSkinStartResult -StateRoot $StateRoot -Token $ResultToken -Outcome failure -Category cancelled -AppearanceRecovery retained
+        }
         exit 0
       }
     }

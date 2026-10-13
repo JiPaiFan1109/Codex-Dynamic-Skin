@@ -17,6 +17,7 @@ jobs:
       - name: Node regressions
         run: node --test tests/*.test.mjs
       - name: Prepare pinned runtime for Windows checks
+        if: always()
         shell: powershell
         run: |
           .\scripts\build-release.ps1 -OutputDirectory .\dist

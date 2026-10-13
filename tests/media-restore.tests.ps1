@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $repo=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 . (Join-Path $repo 'scripts/media.ps1');Initialize-DynamicMedia -InstallRoot $repo
 . (Join-Path $repo 'scripts/wallpaper-library.ps1')
@@ -43,6 +43,8 @@ if(-not(Test-DreamSkinPaused -StateRoot $state)){throw 'Successful restore still
 '@,(New-Object Text.UTF8Encoding($true)))
   $state=Join-Path $root 'CodexDynamicSkin'
   foreach($mode in @('Success','Cancel','MissingResult')){
+    # Each case represents an active managed session, not an untouched installation.
+    [IO.File]::WriteAllText((Join-Path $state 'state.json'),'{}')
     if($mode -eq 'Cancel'){
       Remove-Item -LiteralPath (Join-Path $state 'passed'),(Join-Path $state 'paused') -Force
       [IO.File]::WriteAllText((Join-Path $state 'cancel'),'yes')

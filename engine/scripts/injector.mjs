@@ -1077,6 +1077,11 @@ async function bestEffortOperationUi(session, action, token, state, message, tim
   }
 }
 
+export async function presentOperationUi(session, token, state, message, timeoutMs = 10000) {
+  if (await bestEffortOperationUi(session, "update", token, state, message, timeoutMs)) return true;
+  return bestEffortOperationUi(session, "show", token, state, message, timeoutMs);
+}
+
 async function removeFromSession(session) {
   return session.evaluate(`(() => {
     window.__CODEX_DREAM_SKIN_DISABLED__ = true;
