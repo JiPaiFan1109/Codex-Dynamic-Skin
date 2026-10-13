@@ -111,14 +111,18 @@ begin
   end;
 end;
 
-function InitializeUninstall: Boolean;
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ExitCode: Integer;
   Params: String;
 begin
+  if CurUninstallStep <> usUninstall then Exit;
+  { This event runs after uninstall confirmation and before any files are deleted. }
   Params := '-NoProfile -STA -WindowStyle Hidden -ExecutionPolicy RemoteSigned -File "' + ExpandConstant('{app}\scripts\uninstall-app.ps1') + '"';
   if UninstallSilent then Params := Params + ' -Silent';
-  Result := Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ExitCode);
-  if Result then Result := ExitCode = 0;
-  if not Result and not UninstallSilent then MsgBox('外观恢复未完成，卸载已停止。请在换肤管理中心恢复原始外观后重试。壁纸库会保留在安装目录。', mbError, MB_OK);
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'), Params, '', SW_HIDE, ewWaitUntilTerminated, ExitCode) then
+    RaiseException('无法启动外观恢复，卸载已停止，应用和壁纸库均保留。');
+  if ExitCode = 2 then Abort;
+  if ExitCode <> 0 then
+    RaiseException('外观恢复未完成，卸载已停止。请先在换肤管理中心恢复原始外观后重试。');
 end;

@@ -9,7 +9,7 @@ try{
   New-Item $root -ItemType Directory|Out-Null
   function Get-DreamSkinText {param($Key,$Language);return $Key}
   foreach($condition in @('$coexistenceAction -ceq ''cancel''','-not $restartAuthorized')){
-    $branch=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -eq $condition},$true))
+    $branch=@($ast.FindAll({param($n)$n -is [Management.Automation.Language.IfStatementAst] -and $n.Clauses[0].Item1.Extent.Text -eq $condition -and $n.Extent.Text -match '\bexit\s+0'},$true))
     if($branch.Count -ne 1){throw "Expected one cancellation branch: $condition"}
     $StateRoot=$root;$ResultToken=[guid]::NewGuid().ToString('N');$coexistenceAction='cancel';$restartAuthorized=$false;$language='en'
     # Run only the actual cancellation branch; return in place of process exit keeps assertions alive.

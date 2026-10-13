@@ -53,3 +53,12 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Setup package checks failed' }
           & powershell.exe -NoProfile -STA -ExecutionPolicy RemoteSigned -File installer/verify-setup.ps1 -PackagePath (Join-Path (Get-Location) 'dist/application/app-package')
           if ($LASTEXITCODE -ne 0) { throw 'Real setup lifecycle checks failed' }
+      - name: Preserve the verified installer and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-ux-reviewed-application
+          path: |
+            dist/application/*.exe
+            dist/application/*.zip
+            dist/application/*.sha256
+          retention-days: 7
