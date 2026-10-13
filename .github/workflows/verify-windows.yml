@@ -1,0 +1,34 @@
+name: Windows UX regression review
+on:
+  push:
+    branches: ['codex/windows-release-audit']
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  regressions:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Node regressions
+        run: node --test tests/*.test.mjs
+      - name: Prepare pinned runtime for Windows checks
+        shell: powershell
+        run: |
+          .\scripts\build-release.ps1 -OutputDirectory .\dist
+          Expand-Archive .\dist\*.zip .\dist\package
+          Copy-Item .\dist\package\engine\runtime -Destination .\engine -Recurse
+      - name: Windows regressions
+        if: always()
+        shell: powershell
+        run: |
+          $failed = @()
+          foreach ($test in @('start-cancellation.tests.ps1','ux-cancellation.tests.ps1','upgrade-preflight.tests.ps1','media-restore.tests.ps1','restore-result.tests.ps1','wallpaper-actions.tests.ps1','skin-manager.tests.ps1','manager-error.tests.ps1','uninstall-app.tests.ps1','no-config-mutation.ps1','distribution-cleanup.tests.ps1')) {
+            & powershell.exe -NoProfile -STA -ExecutionPolicy RemoteSigned -File (Join-Path tests $test)
+            if ($LASTEXITCODE -ne 0) { $failed += $test }
+          }
+          if ($failed.Count) { throw ('Failed: '+($failed -join ', ')) }
