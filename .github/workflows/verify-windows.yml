@@ -1,7 +1,7 @@
 name: Windows UX regression review
 on:
   push:
-    branches: ['codex/windows-release-audit']
+    branches: ['codex/windows-release-audit', 'codex/upgrade-helper-cleanup']
   pull_request:
     branches: [main]
 permissions:
@@ -29,7 +29,7 @@ jobs:
         shell: powershell
         run: |
           $failed = @()
-          foreach ($test in @('start-cancellation.tests.ps1','ux-cancellation.tests.ps1','upgrade-preflight.tests.ps1','media-restore.tests.ps1','restore-result.tests.ps1','wallpaper-actions.tests.ps1','skin-manager.tests.ps1','manager-error.tests.ps1','uninstall-app.tests.ps1','no-config-mutation.ps1','distribution-cleanup.tests.ps1')) {
+          foreach ($test in @('start-cancellation.tests.ps1','ux-cancellation.tests.ps1','upgrade-preflight.tests.ps1','upgrade-helper-cleanup.tests.ps1','media-restore.tests.ps1','restore-result.tests.ps1','wallpaper-actions.tests.ps1','skin-manager.tests.ps1','manager-error.tests.ps1','uninstall-app.tests.ps1','no-config-mutation.ps1','distribution-cleanup.tests.ps1')) {
             & powershell.exe -NoProfile -STA -ExecutionPolicy RemoteSigned -File (Join-Path tests $test)
             if ($LASTEXITCODE -ne 0) { $failed += $test }
           }
