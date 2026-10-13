@@ -33,3 +33,23 @@ jobs:
             if ($LASTEXITCODE -ne 0) { $failed += $test }
           }
           if ($failed.Count) { throw ('Failed: '+($failed -join ', ')) }
+      - name: Install pinned compiler in the hosted VM
+        shell: powershell
+        run: |
+          New-Item .tools/inno -ItemType Directory -Force | Out-Null
+          $download = '.tools/inno/compiler-setup.exe'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe' -OutFile $download
+          if ((Get-FileHash $download).Hash -ine '0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f') { throw 'Compiler checksum mismatch' }
+          if ((Get-AuthenticodeSignature $download).Status -ne 'Valid') { throw 'Compiler signature mismatch' }
+          $directory = Join-Path (Get-Location) '.tools/inno/compiler'
+          $process = Start-Process -FilePath $download -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',('/DIR="'+$directory+'"')) -WindowStyle Hidden -PassThru
+          $process.WaitForExit()
+          if ($process.ExitCode -ne 0) { throw 'Compiler setup failed' }
+      - name: Build setup and verify active-runtime upgrade
+        shell: powershell
+        run: |
+          .\scripts\build-app.ps1 -NodeRuntimePath .\engine\runtime\node\node.exe -OutputDirectory .\dist\application
+          & powershell.exe -NoProfile -STA -ExecutionPolicy RemoteSigned -File tests/app-package.tests.ps1 -SetupPath .\dist\application\Codex-Skin-Manager-Setup.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Setup package checks failed' }
+          & powershell.exe -NoProfile -STA -ExecutionPolicy RemoteSigned -File installer/verify-setup.ps1 -PackagePath (Join-Path (Get-Location) 'dist/application/app-package')
+          if ($LASTEXITCODE -ne 0) { throw 'Real setup lifecycle checks failed' }

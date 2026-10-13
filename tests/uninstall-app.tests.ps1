@@ -15,8 +15,10 @@ try{
   function Initialize-DynamicMedia {}
   function Invoke-DynamicEngine { return $false }
   $rejected=$false
-  try{Invoke-DynamicUninstallRestore -InstallRoot $root}catch{$rejected=$true}
+  $cancelled=$false
+  try{Invoke-DynamicUninstallRestore -InstallRoot $root}catch{$rejected=$true;$cancelled=$_.Exception -is [OperationCanceledException]}
   Assert $rejected 'Cancelled restore must abort uninstall'
+  Assert $cancelled 'User cancellation must not be reported as an uninstall error'
   function Invoke-DynamicEngine { return $true }
   Assert (Invoke-DynamicUninstallRestore -InstallRoot $root) 'Successful restore did not permit uninstall'
   Remove-Item -LiteralPath (Join-Path $root 'state.json')

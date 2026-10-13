@@ -54,6 +54,18 @@ try{
   New-Item (Join-Path $installed 'wallpaper-library') -ItemType Directory|Out-Null
   $kept=Join-Path $installed 'wallpaper-library/user-image.txt'
   Set-Content $kept 'keep my wallpaper'
+  # A live packaged runtime locks node.exe. Setup must stop before replacing any files.
+  $node=$null
+  try{
+    $node=Start-Process -FilePath (Join-Path $installed 'engine/runtime/node/node.exe') -ArgumentList @('-e','"setInterval(()=>{},1000)"') -WindowStyle Hidden -PassThru
+    $before=(Get-FileHash (Join-Path $installed 'scripts/skin-manager.ps1')).Hash
+    $attempt=Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -WindowStyle Hidden -PassThru
+    if(-not $attempt.WaitForExit(30000)){throw 'Blocked upgrade did not finish'}
+    if($attempt.ExitCode -eq 0){throw 'Upgrade accepted a running skin runtime'}
+    if((Get-FileHash (Join-Path $installed 'scripts/skin-manager.ps1')).Hash -ne $before){throw 'Blocked upgrade replaced application files'}
+    if($node.HasExited){throw 'Preflight terminated a running process'}
+    'PASS active-runtime upgrade is rejected before changes and never kills processes'
+  }finally{if($node -and -not $node.HasExited){Stop-Process -Id $node.Id -Force}}
   $obsolete=@('engine/assets/dream-skin.css','engine/assets/theme-package-validator.mjs','engine/scripts/tray-dream-skin.ps1')
   foreach($relative in $obsolete){Set-Content (Join-Path $installed $relative) 'obsolete upstream file'}
   Run-Setup $setup @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART')
