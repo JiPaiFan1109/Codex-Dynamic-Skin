@@ -26,7 +26,23 @@ function Get-DynamicManagerActionState {
 function Get-DynamicManagerErrorMessage {
   param([System.Exception]$Exception)
   while($null -ne $Exception.InnerException){$Exception=$Exception.InnerException}
-  return $Exception.Message
+  $message=$Exception.Message
+  $reasons=@{
+    'cdp-launch-failed'='未能启动换肤版 Codex，请关闭 Codex 后从管理中心重试。'
+    'cdp-direct-access-denied'='Windows 阻止了换肤启动，请重新打开官方 Codex，再从管理中心重试。'
+    'cdp-endpoint-unavailable'='未能建立 Codex 换肤连接，请重新打开 Codex 后重试，或检查项目兼容性更新。'
+    'port-unavailable'='换肤连接端口不可用，请稍后重试。'
+    'state-reconciliation-failed'='无法安全确认此前的运行状态，请关闭 Codex 后重试。'
+    'injector-start-failed'='换肤后台未能启动，请重试；仍失败时请查看安装目录中的日志。'
+    'renderer-verification-failed'='未能确认壁纸已经生效，请重新打开 Codex 后重试。'
+    'superseded'='本次操作已被较新的换肤操作取代。'
+    'internal-start-failure'='换肤启动未完成，请查看安装目录中的日志后重试。'
+  }
+  foreach($category in $reasons.Keys){
+    $message=$message.Replace(('应用失败：'+$category),$reasons[$category])
+    $message=$message.Replace(('恢复未完成：'+$category),('恢复未完成：'+$reasons[$category]))
+  }
+  return $message
 }
 
 function New-DynamicSkinManagerWindow {
