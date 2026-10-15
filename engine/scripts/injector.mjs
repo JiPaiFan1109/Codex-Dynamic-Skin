@@ -374,9 +374,9 @@ class BrowserIdentityAnchor {
   }
 }
 
-async function fetchCdpJson(port, resource) {
+async function fetchCdpJson(port, resource, timeoutMs = 2000) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetch(`http://127.0.0.1:${port}${resource}`, {
       redirect: "error",
@@ -404,8 +404,19 @@ async function listAppTargets(port, expectedBrowserId = null) {
   return targets.filter((item) => isValidCdpPageTarget(item, port));
 }
 
-async function connectBrowserIdentityAnchor(port, expectedBrowserId) {
-  const version = await fetchCdpJson(port, "/json/version");
+async function connectBrowserIdentityAnchor(port, expectedBrowserId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let version;
+  while (true) {
+    try {
+      version = await fetchCdpJson(port, "/json/version", Math.min(2000, Math.max(1, deadline - Date.now())));
+      break;
+    } catch (error) {
+      if (error.name !== "AbortError" || Date.now() >= deadline) throw error;
+      console.error("[dream-skin] initial CDP identity probe timed out; retrying within the startup deadline");
+      await new Promise(resolve => setTimeout(resolve, Math.min(250, deadline - Date.now())));
+    }
+  }
   const actualBrowserId = browserIdFromVersion(version, port);
   if (actualBrowserId !== expectedBrowserId) {
     throw new CdpIdentityMismatchError(
@@ -1502,7 +1513,7 @@ async function runOneShot(options) {
 }
 
 async function runWatch(options) {
-  const identityAnchor = await connectBrowserIdentityAnchor(options.port, options.browserId);
+  const identityAnchor = await connectBrowserIdentityAnchor(options.port, options.browserId, options.timeoutMs);
   const sessions = new Map();
   const earlyScripts = new Map();
   const fallbackTargets = new Map();

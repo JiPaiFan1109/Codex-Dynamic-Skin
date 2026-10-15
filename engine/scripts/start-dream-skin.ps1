@@ -608,6 +608,7 @@ try {
       $verifyArguments += $injectorVideoArgs
       $verify = Invoke-DreamSkinNative -FilePath $node.Path -ArgumentList $verifyArguments
       Write-DreamSkinUtf8FileAtomically -Path $VerifyPath -Content (($verify.Output -join "`r`n") + "`r`n")
+      if ($daemon.HasExited) { throw "The injector exited during startup. See $StderrPath" }
       if ($verify.ExitCode -eq 0) { break }
       Write-Host ('Verification failed at ' + (Get-Date).ToString('o') + ': ' + ($verify.Output -join "`r`n"))
       # A verify can fail while the theme is demonstrably on screen: the
@@ -634,6 +635,7 @@ try {
         Write-DreamSkinUtf8FileAtomically -Path $VerifyPath -Content (
           (($verify.Output + $once.Output) -join "`r`n") + "`r`n"
         )
+        if ($daemon.HasExited) { throw "The injector exited during startup. See $StderrPath" }
         if (Test-DreamSkinRenderedVerificationOutput -Output $once.Output) {
           $skinLooksRendered = $true
         }
