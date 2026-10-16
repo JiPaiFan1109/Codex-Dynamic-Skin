@@ -32,6 +32,7 @@ try {
     'scripts/wallpaper-library.ps1','scripts/wallpaper-preview.ps1','scripts/skin-manager.ps1','scripts/skin-manager.xaml',
     'scripts/manager-launcher.cs','scripts/uninstall-app.ps1','appearance/skin-manager.ico',
     'scripts/check-upgrade.ps1',
+    'scripts/app-update.ps1','scripts/update-ui.ps1','scripts/finish-update.ps1','scripts/update-public-key.xml',
     'engine/VERSION',
     'engine/assets/demo-background.png','engine/assets/theme.json',
     'engine/assets/selectors.json','engine/assets/safe-css-validator.mjs','engine/assets/safe-css-policy.json',

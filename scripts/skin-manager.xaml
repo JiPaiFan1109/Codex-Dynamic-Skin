@@ -111,7 +111,13 @@
       </StackPanel>
     </ScrollViewer>
     <Border Grid.Row="3" BorderBrush="{StaticResource LineBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,15,0,0">
-      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ProgressBar x:Name="WorkProgress" Height="2" Visibility="Collapsed" IsIndeterminate="True" Foreground="#AFA2C8" Background="#2B2C30" Margin="0,0,0,9"/>
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions><ProgressBar x:Name="WorkProgress" Height="2" Visibility="Collapsed" IsIndeterminate="True" Foreground="#AFA2C8" Background="#2B2C30" Margin="0,0,0,9"/>
+        <Grid Grid.Row="3" Margin="0,6,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="UpdateText" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,16,0"/><Button x:Name="CheckUpdateButton" Grid.Column="1" Content="检查更新" Style="{StaticResource TextButton}"/></Grid>
+        <Border x:Name="UpdateBanner" Grid.Row="4" Visibility="Collapsed" Background="#24222B" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+          <StackPanel><ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto"><TextBlock x:Name="UpdateNotes" TextWrapping="Wrap" FontSize="12"/></ScrollViewer>
+            <StackPanel Orientation="Horizontal" Margin="0,9,0,0"><Button x:Name="InstallUpdateButton" Content="立即更新" Style="{StaticResource PrimaryButton}" Margin="0,0,16,0"/><Button x:Name="LaterUpdateButton" Content="稍后" Style="{StaticResource TextButton}" Margin="0,0,20,0"/><Button x:Name="SkipUpdateButton" Content="跳过此版本" Style="{StaticResource TextButton}"/></StackPanel>
+          </StackPanel>
+        </Border>
         <Grid Grid.Row="2" Margin="0,10,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBlock x:Name="ConnectionText" Text="正在检测本机 Codex…" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,16,0"/><Button x:Name="DetectButton" Grid.Column="1" Content="重新检测" Style="{StaticResource TextButton}"/></Grid>
         <Grid Grid.Row="1"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <TextBlock x:Name="StatusText" Text="正在加载壁纸库…" Foreground="{StaticResource MutedBrush}" FontSize="11" VerticalAlignment="Center" TextWrapping="Wrap" MaxHeight="44" Margin="0,0,20,0"/>

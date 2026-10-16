@@ -2,6 +2,7 @@
 param([string]$PackagePath,[string]$IsccPath)
 $ErrorActionPreference='Stop'
 $repo=Split-Path $PSScriptRoot -Parent
+. (Join-Path $repo 'scripts/finish-update.ps1')
 if(-not $PackagePath){$PackagePath=Join-Path $repo 'dist/app-package'}
 if(-not $IsccPath){$IsccPath=Join-Path $repo '.tools/inno/compiler/ISCC.exe'}
 $root=Join-Path ([IO.Path]::GetTempPath()) ('skin-setup-test-'+[guid]::NewGuid().ToString('N'))
@@ -54,6 +55,20 @@ try{
   New-Item (Join-Path $installed 'wallpaper-library') -ItemType Directory|Out-Null
   $kept=Join-Path $installed 'wallpaper-library/user-image.txt'
   Set-Content $kept 'keep my wallpaper'
+  # Exercise the actual updater against the real isolated Inno installer, using a test-only key.
+  $updateStage=Join-Path $root 'update-stage';New-Item $updateStage -ItemType Directory|Out-Null
+  Copy-Item $setup (Join-Path $updateStage 'setup.exe')
+  $updateKey=New-Object Security.Cryptography.RSACryptoServiceProvider 2048;$updateKey.PersistKeyInCsp=$false
+  try{
+    [IO.File]::WriteAllText((Join-Path $updateStage 'update-public-key.xml'),$updateKey.ToXmlString($false))
+    $manifest=@{schema=1;version=$version;url=('https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/download/v'+$version+'/Codex-Skin-Manager-Setup.exe');sha256=(Get-FileHash $setup).Hash.ToLowerInvariant();size=(Get-Item $setup).Length;notes='Isolated lifecycle test'}
+    $json=Join-Path $updateStage 'update.json';[IO.File]::WriteAllText($json,($manifest|ConvertTo-Json -Compress),(New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText((Join-Path $updateStage 'update.sig'),[Convert]::ToBase64String($updateKey.SignData([IO.File]::ReadAllBytes($json),'SHA256')))
+    [IO.File]::WriteAllText((Join-Path $installed 'VERSION'),'0.0.1')
+    Invoke-DynamicUpdateInstall $installed $updateStage $version 0
+    if((Get-Content $kept) -ne 'keep my wallpaper'){throw 'Application updater lost wallpaper data'}
+    'PASS application updater verifies signature, runs real setup and confirms upgraded version'
+  }finally{$updateKey.Dispose()}
   # A live packaged runtime locks node.exe. Setup must stop before replacing any files.
   $node=$null
   try{

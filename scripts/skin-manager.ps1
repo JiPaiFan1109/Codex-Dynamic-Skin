@@ -114,6 +114,10 @@ function Update-DynamicManagerButtons {
   $ui.Controls.SaveCurrentButton.IsEnabled=(-not $ui.Busy -and $ui.Status.HasExternalCurrent -and -not $ui.Status.Error)
   $ui.Controls.PlayButton.IsEnabled=(-not $ui.Busy)
   $ui.Controls.DetectButton.IsEnabled=(-not $ui.Busy)
+  if($ui.Controls.CheckUpdateButton){
+    $ui.Controls.CheckUpdateButton.IsEnabled=(-not $ui.Busy -and -not $ui.UpdateWorker -and -not $ui.PrepareOnly)
+    foreach($name in @('InstallUpdateButton','LaterUpdateButton','SkipUpdateButton')){$ui.Controls[$name].IsEnabled=(-not $ui.Busy -and -not $ui.UpdateWorker)}
+  }
 }
 
 function Update-DynamicManagerSelection {
@@ -298,6 +302,8 @@ function Show-DynamicSkinManager {
   $script:SkinManager=@{Window=$window;Controls=$controls;InstallRoot=$InstallRoot;StateRoot=$StateRoot;ModuleRoot=$PSScriptRoot;PrepareOnly=[bool]$PrepareOnly;Items=@();Status=[pscustomobject]@{CurrentId=$null;Paused=$false;HasExternalCurrent=$false;Error=$null};Selected=$null;Filter='All';Busy=$false;Playing=$false;PromptShown=$false;Worker=$null;Runspace=$null;Async=$null}
   $timer=New-Object Windows.Threading.DispatcherTimer;$timer.Interval=[timespan]::FromMilliseconds(120);$timer.Add_Tick({Complete-DynamicManagerWork});$script:SkinManager.Timer=$timer
   $script:SkinManager.Connection=[pscustomobject]@{Available=$false}
+  . (Join-Path $PSScriptRoot 'update-ui.ps1')
+  Initialize-DynamicUpdateUI
   $controls.DetectButton.Add_Click({Start-DynamicManagerWork Refresh})
   $controls.WallpaperList.Add_SelectionChanged({Update-DynamicManagerSelection})
   $controls.AllFilter.Add_Click({$script:SkinManager.Filter='All';Update-DynamicManagerList})
@@ -332,5 +338,11 @@ function Show-DynamicSkinManager {
   $window.Add_Closing({param($sender,$eventArgs);if($script:SkinManager.Busy){$eventArgs.Cancel=$true;$script:SkinManager.Controls.StatusText.Text='任务仍在进行，请等待完成后再关闭窗口。'}})
   $window.Add_ContentRendered({if(-not $script:SkinManager.Async){Start-DynamicManagerWork Refresh}})
   try {Update-DynamicManagerButtons;$null=$window.ShowDialog()}
-  finally {Stop-DynamicManagerPreview;$timer.Stop();if($script:SkinManager.Worker){$script:SkinManager.Worker.Dispose()};if($script:SkinManager.Runspace){$script:SkinManager.Runspace.Dispose()};$script:SkinManager=$null}
+  finally {
+    Stop-DynamicManagerPreview;$timer.Stop()
+    $script:SkinManager.UpdateTimer.Stop();$script:SkinManager.UpdateStartupTimer.Stop()
+    if($script:SkinManager.UpdateWorker){$script:SkinManager.UpdateWorker.Stop();$script:SkinManager.UpdateWorker.Dispose()}
+    if($script:SkinManager.UpdateRunspace){$script:SkinManager.UpdateRunspace.Dispose()}
+    if($script:SkinManager.Worker){$script:SkinManager.Worker.Dispose()};if($script:SkinManager.Runspace){$script:SkinManager.Runspace.Dispose()};$script:SkinManager=$null
+  }
 }
