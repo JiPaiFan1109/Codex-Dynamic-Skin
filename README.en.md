@@ -21,6 +21,8 @@ A community tool, **not an official OpenAI product or affiliated with OpenAI**. 
   <img src="docs/images/skin-manager.png" width="1100" alt="Codex Skin Manager: wallpaper gallery, video preview, apply controls, and local Codex detection">
 </p>
 
+New manager interface: image/video library, playback preview, wallpaper controls, and appearance restoration. [View full screenshot](docs/images/skin-manager.png).
+
 - **Images and videos:** import local files and use them as Codex backgrounds.
 - **Wallpaper library:** card gallery, image/video filters, large previews, silent video playback, renaming, and deletion.
 - **Automatic Codex detection:** the manager locates the supported local client; Apply and Open Codex use the local skin engine.
