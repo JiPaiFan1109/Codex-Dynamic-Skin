@@ -12,6 +12,8 @@ function Invoke-DynamicUninstallRestore {
   if($Silent){throw '请先在换肤管理中心恢复原始外观，再执行静默卸载。'}
   Initialize-DynamicMedia -InstallRoot $InstallRoot
   if((Invoke-DynamicEngine -StateRoot $InstallRoot -Restore) -ne $true){throw [OperationCanceledException]::new('已取消恢复，卸载已停止。')}
+  # The engine removes its pause file; retained themes must stay inactive after uninstall.
+  Set-DreamSkinPaused -Paused $true -StateRoot $InstallRoot|Out-Null
   return $true
 }
 
