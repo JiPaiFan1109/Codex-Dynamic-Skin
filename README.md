@@ -44,7 +44,7 @@
 | 日期（北京时间） | 版本 | 更新内容 |
 | --- | --- | --- |
 | 2026-10-17 | [0.3.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.3.0) | 应用内更新提醒与一键升级，签名校验，保留壁纸库 |
-| 2026-10-13 | [0.2.2](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.2) | 修复窗口关闭后后台仍阻止升级；安装时安全退出已核实的换肤辅助进程，保留 Codex 和用户数据 |
+| 2026-10-16 | [0.2.2](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.2) | 修复窗口关闭后后台仍阻止升级；安装时安全退出已核实的换肤辅助进程，保留 Codex 和用户数据 |
 | 2026-10-13 | [0.2.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.1) | 修复取消后重复提示、重复恢复与进度提示问题；增加升级占用检查，减少卸载及关闭窗口时的多余弹窗 |
 | 2026-10-13 | [0.2.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.0) | Windows 安装应用；完整换肤管理中心与透明图标；自动检测 Codex；清理旧托盘及上游冗余功能 |
 | 2026-10-08 | [0.1.3](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.3) | 改进启动入口，阻止多套 Codex 实例并存，迁移旧动态主题 |

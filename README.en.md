@@ -44,7 +44,7 @@ Recorded from a real Codex window after checking for sensitive information. The 
 | Date (Beijing time) | Version | Changes |
 | --- | --- | --- |
 | 2026-10-17 | [0.3.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.3.0) | In-app update notices and one-click upgrades with signed manifests; wallpaper library retained |
-| 2026-10-13 | [0.2.2](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.2) | Setup safely retires verified skin helpers left after windows close, preserving Codex and user data |
+| 2026-10-16 | [0.2.2](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.2) | Setup safely retires verified skin helpers left after windows close, preserving Codex and user data |
 | 2026-10-13 | [0.2.1](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.1) | Fixed repeated cancellation/restore prompts and the status helper; added upgrade preflight and reduced unnecessary dialogs |
 | 2026-10-13 | [0.2.0](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.2.0) | Windows setup, full manager, transparent icon, local Codex detection, and removal of unused upstream tray/features |
 | 2026-10-08 | [0.1.3](https://github.com/JiPaiFan1109/Codex-Dynamic-Skin/releases/tag/v0.1.3) | Improved launch entry, multiple-instance protection, and legacy theme migration |
